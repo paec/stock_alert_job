@@ -72,21 +72,20 @@ def check_stock(symbol, x_days, y_percent):
 
 
 def main():
+    default_rules = [
+        {"symbol": "0050.TW", "x_days": 5, "y_percent": 5},
+        {"symbol": "VOO", "x_days": 5, "y_percent": 5},
+        {"symbol": "VT", "x_days": 5, "y_percent": 5}
+    ]
     try:
         config = requests.get(API_URL, timeout=20).json()
         rules = config.get("rules", [])
     except Exception as e:
         print(f"API error: {e}, use default rule")
-        rules = [
-            {"symbol": "0050.TW", "x_days": 5, "y_percent": 5},
-            {"symbol": "VOO", "x_days": 3, "y_percent": 5}
-        ]
+        rules = default_rules
 
     if not rules:
-        rules = [
-            {"symbol": "0050.TW", "x_days": 5, "y_percent": 5},
-            {"symbol": "VOO", "x_days": 3, "y_percent": 5}
-        ]
+        rules = default_rules
 
     bubbles = []
     for rule in rules:
