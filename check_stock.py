@@ -33,7 +33,7 @@ def send_line(msg):
     response = requests.post(url, headers=headers, json=data, timeout=20)
     if response.status_code >= 400:
         print(f"LINE API error: {response.status_code} {response.text}")
-
+    print()(f"LINE API response: {response.status_code} {response.text}")
 
 def check_stock(symbol, x_days, y_percent):
     # 1. 下載股票資料，取得最近 x_days+5 天的歷史收盤價
