@@ -1,0 +1,15 @@
+## 1. GitHub Actions Secrets
+
+Set repository secrets:
+- `CONFIG_API_URL`: Your PythonAnywhere config API URL, e.g. `https://your-domain.pythonanywhere.com/api/config`
+- `LINE_TOKEN`: Your LINE Messaging API channel access token
+
+Workflow file: `.github/workflows/check_stock.yml`
+
+## 2. Test checker script locally
+
+```bash
+set CONFIG_API_URL=https://your-domain.pythonanywhere.com/api/config
+set LINE_TOKEN=your_line_token
+python script/check_stock.py
+```
