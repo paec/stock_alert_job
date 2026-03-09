@@ -36,6 +36,16 @@ def send_line(msg):
     print(f"LINE API response: {response.status_code} {response.text}")
 
 def check_stock(symbol, x_days, y_percent):
+
+    # 0. 檢查股票是否開盤中（用1分鐘資料判斷）
+    ticker = yf.Ticker(symbol)
+    min_data = ticker.history(period="1d", interval="1m")
+    if min_data.empty:
+        print("目前未開盤或無資料")
+        return None
+    else:
+        print("目前正在開盤中（1分鐘資料有值）")
+    
     # 1. 下載股票資料，取得最近 x_days+5 天的歷史收盤價
     data = yf.download(symbol, period=f"{x_days+5}d", progress=False, auto_adjust=False)
 
