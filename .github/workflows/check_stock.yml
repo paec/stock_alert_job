@@ -2,7 +2,7 @@ name: stock checker
 
 on:
   schedule:
-    - cron: "0 0 * * 1-5" #這樣寫就可以了，因為台灣時間8點是UTC時間的0點
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
