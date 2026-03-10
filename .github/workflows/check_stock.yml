@@ -32,4 +32,4 @@ jobs:
         env:
           CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
-        run: python check_stock.py
+        run: python check_stock_clean.py
