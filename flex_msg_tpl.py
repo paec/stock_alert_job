@@ -1,5 +1,13 @@
 def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_text):
   triggered = drop <= -float(y_percent)
+  # 根據漲跌決定顏色
+  if drop > 0:
+      drop_color = "#00AA00"    # 正報酬：綠色
+  elif triggered:
+      drop_color = "#FF5551"    # 跌幅超過閾值：紅色
+  else:
+      drop_color = "#333333"    # 其他情況：深灰
+    
   return {
         "type": "bubble",
         "header": {
@@ -61,7 +69,7 @@ def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_
                   "type": "text",
                   "text": f"({x_days}日)內漲跌幅: {drop:.2f}%",
                   "size": "sm",
-                  "color": "#FF5551" if triggered else "#333333",
+                  "color": drop_color,
                   "weight": "bold"
                 },
                 {
