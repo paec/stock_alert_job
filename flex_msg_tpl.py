@@ -51,7 +51,7 @@ def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_
                 {
                   "type": "text",
                   "text": history_text,
-                  "size": "xs",
+                  "size": "md",
                   "color": "#555555",
                   "wrap": True
                 }
