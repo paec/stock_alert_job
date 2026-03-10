@@ -29,7 +29,7 @@ def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_
             {
               "type": "text",
               "text": f"📅 {start_date} ~ {end_date}",
-              "size": "xs",
+              "size": "sm",
               "color": "#888888"
             },
             {
