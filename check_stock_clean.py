@@ -158,7 +158,7 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     # 條件 1：漲跌幅絕對值 >= y_percent
     hit_threshold = (drop < 0) and (abs(drop) >= float(rule.y_percent))
     # 條件 2：現在是整點
-    is_full_hour = (now.minute != 0)
+    is_full_hour = (now.minute != 0 + 5)
 
     if not (hit_threshold or is_full_hour):
         print(f"{rule.symbol}: 變動未超過門檻且非整點，不送出 LINE 訊息")
