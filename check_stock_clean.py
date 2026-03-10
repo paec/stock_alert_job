@@ -52,11 +52,7 @@ def send_line(msg: dict[str, Any], token: str = LINE_TOKEN) -> None:
 
 
 def fetch_rules(api_url: str = API_URL) -> list[Rule]:
-    default_rules = [
-        Rule("0050.TW", 5, 5.0),
-        Rule("VOO", 5, 5.0),
-        Rule("VT", 5, 5.0),
-    ]
+    default_rules = [Rule("0050.TW", 5, 5.0),Rule("VOO", 5, 5.0),Rule("VT", 5, 5.0)]
 
     try:
         config = requests.get(api_url, timeout=20).json()
@@ -88,12 +84,12 @@ def is_market_open(symbol: str, now: datetime.datetime) -> bool:
     # 判斷市場 & 時區 & 時段（now 由外部傳入）
     if symbol.endswith(".TW"):
         tz = pytz.timezone("Asia/Taipei")
-        session_start = datetime.time(8, 30)
+        session_start = datetime.time(8, 0)
         session_end = datetime.time(15, 0)
         market_name = "台股"
     else:
         tz = pytz.timezone("America/New_York")
-        session_start = datetime.time(8, 30)
+        session_start = datetime.time(8, 0)
         session_end = datetime.time(17, 0)
         market_name = "美股"
 
