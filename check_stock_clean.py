@@ -142,9 +142,9 @@ def get_market_timezone(symbol: str) -> tuple[pytz.BaseTzInfo, str]:
         
 def is_today_final_report_time(market_name: str, now: datetime.datetime):
     if market_name == "台股":
-        return now.hour == 15 and now.minute == 40
+        return now.hour == 14 and now.minute == 10
     else:
-        return now.hour == 17 and now.minute == 40
+        return now.hour == 16 and now.minute == 40
 
 
 def download_close_prices(symbol: str, x_days: int):
