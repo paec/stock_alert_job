@@ -32,4 +32,13 @@ jobs:
         env:
           CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
-        run: python check_stock_clean.py
+        run: python check_stock_clean.py 2>&1 | tee check_stock_run.log
+
+      - name: 上傳 Log 檔案
+        # 即使程式出錯 (if: always())，也要把 Log 傳上去方便排錯
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stock-report-logs
+          path: stock_run.log
+          retention-days: 7  # 檔案保留天數
