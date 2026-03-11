@@ -40,5 +40,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: stock-report-logs
-          path: stock_run.log
+          path: check_stock_run.log
           retention-days: 7  # 檔案保留天數
