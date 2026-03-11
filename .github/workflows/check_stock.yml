@@ -28,8 +28,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: run script
+
+      - name: 執行 Python 並直接顯示在摘要頁
+        run: |
+          # 1. 先把標題寫進摘要
+          echo "### 📈 股票追蹤執行日誌 (${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          
+          # 2. 用程式碼區塊包起來，讓 Log 好讀
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          
+          # 3. 執行 Python，同時把輸出導向到摘要檔案
+          # 這裡使用 2>&1 把錯誤也抓進來，並用 tee 同時印在畫面與寫入檔案
+          python check_stock_clean.py 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          
+          # 4. 結束程式碼區塊
+          echo '```' >> $GITHUB_STEP_SUMMARY
         env:
-          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
-        run: python check_stock_clean.py
+          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
