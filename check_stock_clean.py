@@ -119,7 +119,7 @@ def has_today_data(close_series, tz, symbol: str) -> bool:
 
     last_bar_date = last_bar_time.date()
     today_date = now.date()
-    print(f"last_bar_time 最近一筆日線資料日期: {last_bar_time}")
+    
     if last_bar_date != today_date:
         print(
             f"{symbol}: 最近一筆日線資料日期為 {last_bar_date} "
