@@ -28,17 +28,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: run script
-        env:
-          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
-          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
-        run: python check_stock_clean.py 2>&1 | tee check_stock_run.log
 
-      - name: 上傳 Log 檔案
-        # 即使程式出錯 (if: always())，也要把 Log 傳上去方便排錯
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: stock-report-logs
-          path: check_stock_run.log
-          retention-days: 7  # 檔案保留天數
+      - name: 執行 Python 並直接顯示在摘要頁
+        run: |
+          # 1. 先把標題寫進摘要
+          echo "### 📈 股票追蹤執行日誌 (${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          
+          # 2. 用程式碼區塊包起來，讓 Log 好讀
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          
+          # 3. 執行 Python，同時把輸出導向到摘要檔案
+          # 這裡使用 2>&1 把錯誤也抓進來，並用 tee 同時印在畫面與寫入檔案
+          python check_stock_clean.py 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          
+          # 4. 結束程式碼區塊
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
