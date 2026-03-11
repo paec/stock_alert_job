@@ -202,7 +202,7 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     history_text = format_history(history_series)
 
     return build_bubble(rule.symbol, start_date,end_date, rule.x_days, 
-                        drop, rule.y_percent, history_text)
+                        drop, rule.y_percent, history_text, is_final_report=is_today_final_report)
 
 
 def format_history(close_series) -> str:
