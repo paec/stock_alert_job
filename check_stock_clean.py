@@ -81,43 +81,71 @@ def parse_rule(rule_data: dict[str, Any]) -> Rule | None:
 
 
 def is_market_open(symbol: str, now: datetime.datetime) -> bool:
-    # 判斷市場 & 時區 & 時段（now 由外部傳入）
-    if symbol.endswith(".TW"):
-        tz = pytz.timezone("Asia/Taipei")
+    tz, market_name = get_market_timezone(symbol)
+    
+    # 只負責判斷「現在時間是否在交易時段」
+    if market_name == "台股": # 台股: 09:00 至 13:30，程式時間區間多抓一點buffer
         session_start = datetime.time(8, 0)
         session_end = datetime.time(15, 0)
-        market_name = "台股"
-    else:
-        tz = pytz.timezone("America/New_York")
+    else: # 美股: 09:30 至 16:00，程式時間區間多抓一點buffer
         session_start = datetime.time(8, 0)
         session_end = datetime.time(17, 0)
-        market_name = "美股"
 
-    if not (session_start <= now.time() <= session_end):
+    local_now = now.astimezone(tz)
+    if not (session_start <= local_now.time() <= session_end):
         print(f"{symbol} ({market_name}) 非交易時段，跳過")
         return False
+    
+    return True
 
-    ticker = yf.Ticker(symbol)
-    min_data = ticker.history(period="1d", interval="1m")
 
-    if min_data.empty:
-        print(f"{symbol}: 今日無 1 分鐘資料，可能尚未開盤或休市，跳過")
+def has_today_data(close_series, tz, symbol: str) -> bool:
+    """
+    檢查 yf.download 回來的日線 close_series，
+    最後一筆資料的日期是否為「今天」（以 tz 為準）。
+    """
+    if close_series.empty:
+        print(f"{symbol}: close_series 為空，跳過")
         return False
 
-    last_bar_time = min_data.index[-1]
+    now = datetime.datetime.now(tz)
+    last_bar_time = close_series.index[-1]
+
+    # 對齊時區
     if last_bar_time.tzinfo is None:
         last_bar_time = tz.localize(last_bar_time)
     else:
         last_bar_time = last_bar_time.astimezone(tz)
-    
-    diff_min = (now - last_bar_time).total_seconds() / 60.0
-    is_recent = diff_min <= 3
 
-    if not is_recent:
-        print(f"{symbol}: 最後一筆 1 分鐘資料距今 {diff_min:.1f} 分鐘，視為未開盤，跳過")
+    last_bar_date = last_bar_time.date()
+    today_date = now.date()
+
+    if last_bar_date != today_date:
+        print(
+            f"{symbol}: 最近一筆日線資料日期為 {last_bar_date} "
+            f"（今日 {today_date}），視為尚未開盤或休市，跳過"
+        )
         return False
 
     return True
+
+
+def get_market_timezone(symbol: str) -> tuple[pytz.BaseTzInfo, str]:
+    """
+    依照股票代號判斷所屬市場與時區。
+    回傳 (tz, market_name)
+    """
+    if symbol.endswith(".TW"):
+        return pytz.timezone("Asia/Taipei"), "台股"
+    else:
+        return pytz.timezone("America/New_York"), "美股"
+        
+def is_today_final_report_time(market_name: str, now: datetime.datetime):
+    if market_name == "台股":
+        return now.hour == 15 and now.minute == 40
+    else:
+        return now.hour == 17 and now.minute == 40
+
 
 def download_close_prices(symbol: str, x_days: int):
     return yf.download(
@@ -129,19 +157,22 @@ def download_close_prices(symbol: str, x_days: int):
 
 
 def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
-    # 取得 now 並決定時區 (AI提示: 可以抽出去嗎?)
-    if rule.symbol.endswith(".TW"):
-        tz = pytz.timezone("Asia/Taipei")
-    else:
-        tz = pytz.timezone("America/New_York")
-    now = datetime.datetime.now(tz)  # 取得正確時區的現在時間
-    
-    # 修改：傳 now 給 is_market_open
+    # 決定時區並取得 now 
+    tz, market_name = get_market_timezone(rule.symbol)
+    now = datetime.datetime.now(tz)
+
+    # 先用「時間區間」判斷是否有可能是開盤時間
     if not is_market_open(rule.symbol, now):
         return None
 
+    # 只下載一次 close_series，後面全部重用
     close_series = download_close_prices(rule.symbol, rule.x_days)
-    print(f"{rule.symbol} close_series: {close_series}") #保留這行來確認資料是否正確下載
+    print(f"{rule.symbol} close_series: {close_series}")
+
+    # 最近一筆日線資料日期是否為今日，否則視為尚未開盤或休市，跳過
+    if not has_today_data(close_series, tz, rule.symbol):
+        return None
+        
     if len(close_series) < rule.x_days + 1:
         print(f"{rule.symbol}: not enough data")
         return None
@@ -153,11 +184,11 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     #Refactor point1 start# #AI提示#
     # 條件 1：漲跌幅絕對值 >= y_percent
     hit_threshold = (drop < 0) and (abs(drop) >= float(rule.y_percent))
-    # 條件 2：現在是整點
-    is_full_hour = (now.minute == 0)
+    # 條件 2：關盤後 隔一段特定時間 發最終報表
+    is_today_final_report = is_today_final_report_time(market_name, now)
 
-    if not (hit_threshold or is_full_hour):
-        print(f"{rule.symbol}: 變動未超過門檻且非整點，不送出 LINE 訊息")
+    if not (hit_threshold or is_today_final_report):
+        print(f"{rule.symbol}: 變動未超過門檻且非最終報表時間，不送出 LINE 訊息")
         return None
      #Refactor point1 end#
      
