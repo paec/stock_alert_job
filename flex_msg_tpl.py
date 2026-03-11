@@ -1,4 +1,4 @@
-def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_text):
+def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_text, is_final_report: bool = False):
   triggered = drop <= -float(y_percent)
   # 根據漲跌決定顏色
   if drop > 0:
@@ -8,6 +8,10 @@ def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_
   else:
       drop_color = "#333333"    # 其他情況：深灰
     
+  # 標題文字：如果是 final report，就加上 (已關盤)
+  title_suffix = " (已關盤)" if is_final_report else ""
+  title_text = f"📊 {symbol} 股票報表{title_suffix}"
+
   return {
         "type": "bubble",
         "header": {
@@ -16,7 +20,7 @@ def build_bubble(symbol, start_date, end_date, x_days, drop, y_percent, history_
           "contents": [
             {
               "type": "text",
-              "text": f"📊 {symbol} 股票報表",
+              "text": title_text,
               "weight": "bold",
               "size": "lg"
             }
