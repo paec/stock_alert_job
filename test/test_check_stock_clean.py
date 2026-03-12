@@ -25,10 +25,6 @@ def make_close_series(values, start="2026-03-03", tz="America/New_York"):
     return pd.Series(values, index=index)
 
 
-def make_intraday_frame(timestamps):
-    return pd.DataFrame({"Close": list(range(len(timestamps)))}, index=pd.DatetimeIndex(timestamps))
-
-
 class ParseRuleTests(unittest.TestCase):
     def test_parse_rule_returns_normalized_rule(self):
         rule = stock_job.parse_rule({"symbol": " voo ", "x_days": "5", "y_percent": "3.5"})
@@ -61,6 +57,7 @@ class FetchRulesTests(unittest.TestCase):
                 stock_job.Rule("VT", 10, 7.5),
             ],
         )
+
         mock_get.assert_called_once_with("https://example.test/config", timeout=20)
 
     @patch("check_stock_clean.requests.get")
@@ -126,7 +123,7 @@ class SendLineTests(unittest.TestCase):
             timeout=20,
         )
 
-    @patch("builtins.print")
+    @patch("builtins.print") #mock_print會攔截print函數的調用，讓我們能夠檢查print是否被正確調用以及輸出的內容。
     @patch("check_stock_clean.requests.post")
     def test_send_line_prints_error_and_response_when_line_api_fails(self, mock_post, mock_print):
         mock_post.return_value.status_code = 500
@@ -139,84 +136,75 @@ class SendLineTests(unittest.TestCase):
 
 
 class IsMarketOpenTests(unittest.TestCase):
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_returns_false_outside_trading_hours(self, mock_ticker):
+    def test_is_market_open_returns_false_outside_trading_hours(self):
         taipei = pytz.timezone("Asia/Taipei")
         now = taipei.localize(dt.datetime(2026, 3, 10, 7, 0))
 
         is_open = stock_job.is_market_open("0050.TW", now)
 
         self.assertFalse(is_open)
-        mock_ticker.assert_not_called()
 
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_returns_false_when_no_intraday_data(self, mock_ticker):
+    def test_is_market_open_returns_true_during_tw_session_hours(self):
         taipei = pytz.timezone("Asia/Taipei")
         now = taipei.localize(dt.datetime(2026, 3, 10, 9, 0))
-        mock_ticker.return_value.history.return_value = pd.DataFrame()
 
         is_open = stock_job.is_market_open("0050.TW", now)
 
-        self.assertFalse(is_open)
+        self.assertTrue(is_open)
 
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_returns_false_when_last_bar_is_stale(self, mock_ticker):
+    def test_is_market_open_returns_true_during_us_session_hours(self):
         new_york = pytz.timezone("America/New_York")
         now = new_york.localize(dt.datetime(2026, 3, 10, 10, 0))
-        mock_ticker.return_value.history.return_value = make_intraday_frame(
-            [dt.datetime(2026, 3, 10, 9, 55)]
-        )
 
         is_open = stock_job.is_market_open("VOO", now)
 
-        self.assertFalse(is_open)
+        self.assertTrue(is_open)
 
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_returns_false_after_session_end(self, mock_ticker):
+    def test_is_market_open_returns_false_after_session_end(self):
         new_york = pytz.timezone("America/New_York")
         now = new_york.localize(dt.datetime(2026, 3, 10, 17, 1))
 
         is_open = stock_job.is_market_open("VOO", now)
 
         self.assertFalse(is_open)
-        mock_ticker.assert_not_called()
 
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_returns_true_when_recent_bar_exists(self, mock_ticker):
-        new_york = pytz.timezone("America/New_York")
-        now = new_york.localize(dt.datetime(2026, 3, 10, 10, 0))
-        mock_ticker.return_value.history.return_value = make_intraday_frame(
-            [new_york.localize(dt.datetime(2026, 3, 10, 9, 58))]
-        )
-
-        is_open = stock_job.is_market_open("VOO", now)
-
-        self.assertTrue(is_open)
-
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_accepts_session_start_with_exact_three_minute_naive_bar(self, mock_ticker):
+    def test_is_market_open_accepts_tw_session_start_boundary(self):
         taipei = pytz.timezone("Asia/Taipei")
-        now = taipei.localize(dt.datetime(2026, 3, 10, 8, 30))
-        mock_ticker.return_value.history.return_value = make_intraday_frame(
-            [dt.datetime(2026, 3, 10, 8, 27)]
-        )
+        now = taipei.localize(dt.datetime(2026, 3, 10, 8, 0))
 
         is_open = stock_job.is_market_open("0050.TW", now)
 
         self.assertTrue(is_open)
 
-    @patch("check_stock_clean.yf.Ticker")
-    def test_is_market_open_accepts_session_end_with_cross_timezone_recent_bar(self, mock_ticker):
+    def test_is_market_open_accepts_us_session_end_boundary(self):
         new_york = pytz.timezone("America/New_York")
-        utc = pytz.UTC
         now = new_york.localize(dt.datetime(2026, 3, 10, 17, 0))
-        mock_ticker.return_value.history.return_value = make_intraday_frame(
-            [utc.localize(dt.datetime(2026, 3, 10, 20, 58))]
-        )
 
         is_open = stock_job.is_market_open("VOO", now)
 
         self.assertTrue(is_open)
+
+
+class HasTodayDataTests(unittest.TestCase):
+    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    def test_has_today_data_returns_false_for_stale_daily_bar(self):
+        tz = pytz.timezone("America/New_York")
+        FixedDateTime.frozen_now = tz.localize(dt.datetime(2026, 3, 10, 10, 15))
+        close_series = make_close_series([100.0, 99.0], start="2026-03-08")
+
+        has_data = stock_job.has_today_data(close_series, tz, "VOO")
+
+        self.assertFalse(has_data)
+
+    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    def test_has_today_data_returns_true_for_today_daily_bar(self):
+        tz = pytz.timezone("America/New_York")
+        FixedDateTime.frozen_now = tz.localize(dt.datetime(2026, 3, 10, 10, 15))
+        close_series = make_close_series([100.0, 99.0, 98.0], start="2026-03-08")
+
+        has_data = stock_job.has_today_data(close_series, tz, "VOO")
+
+        self.assertTrue(has_data)
 
 
 class DownloadClosePricesTests(unittest.TestCase):
@@ -234,6 +222,50 @@ class DownloadClosePricesTests(unittest.TestCase):
             progress=False,
             auto_adjust=False,
         )
+
+
+class GetSessionHoursTests(unittest.TestCase):
+    def test_tw_returns_correct_hours(self):
+        start, end = stock_job._get_session_hours("台股")
+        self.assertEqual(start, dt.time(8, 0))
+        self.assertEqual(end, dt.time(15, 0))
+
+    def test_us_returns_correct_hours(self):
+        start, end = stock_job._get_session_hours("美股")
+        self.assertEqual(start, dt.time(8, 0))
+        self.assertEqual(end, dt.time(17, 0))
+
+
+class CalculatePriceChangePctTests(unittest.TestCase):
+
+    def test_price_up(self):
+        series = make_close_series([100, 110, 120, 130])
+        pct = stock_job.calculate_price_change_pct(series, 3)
+        self.assertAlmostEqual(pct, 18.181818181818183)
+
+    def test_price_down(self):
+        series = make_close_series([100, 90, 80, 70])
+        pct = stock_job.calculate_price_change_pct(series, 3)
+        self.assertAlmostEqual(pct, -22.22222222222222)
+
+    def test_price_flat(self):
+        series = make_close_series([100, 100, 100, 100])
+        pct = stock_job.calculate_price_change_pct(series, 3)
+        self.assertAlmostEqual(pct, 0.0)
+
+
+class ExceedsDropThresholdTests(unittest.TestCase):
+    def test_exceeds_threshold(self):
+        self.assertTrue(stock_job._exceeds_drop_threshold(-6.0, 5.0))
+
+    def test_not_exceeds_threshold(self):
+        self.assertFalse(stock_job._exceeds_drop_threshold(-4.0, 5.0))
+
+    def test_positive_drop(self):
+        self.assertFalse(stock_job._exceeds_drop_threshold(6.0, 5.0))
+
+    def test_exact_threshold(self):
+        self.assertTrue(stock_job._exceeds_drop_threshold(-5.0, 5.0))
 
 
 class BuildStockBubbleTests(unittest.TestCase):
@@ -260,7 +292,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_download_close_prices,
     ):
         FixedDateTime.frozen_now = self.now
-        mock_download_close_prices.return_value = make_close_series([100.0, 95.0, 94.0])
+        mock_download_close_prices.return_value = make_close_series([100.0, 95.0, 94.0], start="2026-03-08")
 
         bubble = stock_job.build_stock_bubble(self.rule)
 
@@ -269,15 +301,13 @@ class BuildStockBubbleTests(unittest.TestCase):
     @patch("check_stock_clean.datetime.datetime", FixedDateTime)
     @patch("check_stock_clean.build_bubble")
     @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
-    def test_build_stock_bubble_returns_none_when_not_threshold_and_not_full_hour(
+    def test_build_stock_bubble_returns_none_when_not_threshold_and_not_final_report_time(
         self,
-        mock_is_market_open,
         mock_download_close_prices,
         mock_build_bubble,
     ):
         FixedDateTime.frozen_now = self.now
-        mock_download_close_prices.return_value = make_close_series([100.0, 99.0, 98.0, 97.0])
+        mock_download_close_prices.return_value = make_close_series([100.0, 99.0, 98.0, 97.0], start="2026-03-07")
 
         bubble = stock_job.build_stock_bubble(self.rule)
 
@@ -295,39 +325,41 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_build_bubble,
     ):
         FixedDateTime.frozen_now = self.now
-        mock_download_close_prices.return_value = make_close_series([100.0, 90.0, 88.0, 85.0])
+        mock_download_close_prices.return_value = make_close_series([100.0, 90.0, 88.0, 85.0], start="2026-03-07")
 
         bubble = stock_job.build_stock_bubble(self.rule)
 
         self.assertEqual(bubble, {"type": "bubble"})
         mock_build_bubble.assert_called_once_with(
             "VOO",
-            "03-04",
-            "03-06",
+            "03-08",
+            "03-10",
             3,
             -5.555555555555555,
             5.0,
-            "03-04: 90.00\n03-05: 88.00\n03-06: 85.00",
+            "03-08: 90.00\n03-09: 88.00\n03-10: 85.00",
+            is_final_report=False,
         )
 
     @patch("check_stock_clean.datetime.datetime", FixedDateTime)
     @patch("check_stock_clean.build_bubble", return_value={"type": "bubble"})
     @patch("check_stock_clean.download_close_prices")
     @patch("check_stock_clean.is_market_open", return_value=True)
-    def test_build_stock_bubble_builds_bubble_on_full_hour_even_without_alert(
+    def test_build_stock_bubble_builds_bubble_on_final_report_time_even_without_alert(
         self,
         mock_is_market_open,
         mock_download_close_prices,
         mock_build_bubble,
     ):
-        FixedDateTime.frozen_now = self.now.replace(minute=0)
-        mock_download_close_prices.return_value = make_close_series([100.0, 102.0, 101.0, 103.0])
+        FixedDateTime.frozen_now = self.now.replace(hour=16, minute=45)
+        mock_download_close_prices.return_value = make_close_series([100.0, 102.0, 101.0, 103.0], start="2026-03-07")
 
         bubble = stock_job.build_stock_bubble(self.rule)
 
         self.assertEqual(bubble, {"type": "bubble"})
         self.assertEqual(mock_build_bubble.call_args.args[3], 3)
         self.assertGreater(mock_build_bubble.call_args.args[4], 0)
+        self.assertTrue(mock_build_bubble.call_args.kwargs["is_final_report"])
 
     @patch("check_stock_clean.datetime.datetime", FixedDateTime)
     @patch("check_stock_clean.is_market_open", return_value=False)

@@ -6,6 +6,7 @@ from typing import Any
 import pytz
 import requests
 import yfinance as yf
+from shioaji_utils import get_tw_close_prices, format_tw_close_series, logout_api
 
 from flex_msg_tpl import build_bubble, build_carousel
 
@@ -80,28 +81,28 @@ def parse_rule(rule_data: dict[str, Any]) -> Rule | None:
     return Rule(symbol=symbol, x_days=x_days, y_percent=y_percent)
 
 
-def is_market_open(symbol: str, now: datetime.datetime) -> bool:
-    tz, market_name = get_market_timezone(symbol)
-    
-    # 只負責判斷「現在時間是否在交易時段」
-    if market_name == "台股": # 台股: 09:00 至 13:30，程式時間區間多抓一點buffer
-        session_start = datetime.time(8, 0)
-        session_end = datetime.time(15, 0)
-    else: # 美股: 09:30 至 16:00，程式時間區間多抓一點buffer
-        session_start = datetime.time(8, 0)
-        session_end = datetime.time(17, 0)
+def _get_session_hours(market_name: str) -> tuple[datetime.time, datetime.time]:
+    if market_name == "台股":
+        return datetime.time(8, 0), datetime.time(15, 0)
+    return datetime.time(8, 0), datetime.time(17, 0)
 
+
+def is_market_open(symbol: str, now: datetime.datetime) -> bool:
+    return True
+    tz, market_name = get_market_timezone(symbol)
+    session_start, session_end = _get_session_hours(market_name)
     local_now = now.astimezone(tz)
+
     if not (session_start <= local_now.time() <= session_end):
         print(f"{symbol} ({market_name}) 非交易時段，跳過")
         return False
-    
+
     return True
 
 
 def has_today_data(close_series, tz, symbol: str) -> bool:
     """
-    檢查 yf.download 回來的日線 close_series，
+    檢查 yf.download 回來的日線 close_series
     最後一筆資料的日期是否為「今天」（以 tz 為準）。
     """
     if close_series.empty:
@@ -148,12 +149,29 @@ def is_today_final_report_time(market_name: str, now: datetime.datetime):
 
 
 def download_close_prices(symbol: str, x_days: int):
-    return yf.download(
-        symbol,
-        period=f"{x_days + DEFAULT_LOOKBACK_PADDING_DAYS}d",
-        progress=False,
-        auto_adjust=False,
-    )["Close"].squeeze()  # ensure Series even when yfinance returns single-column DataFrame
+    if symbol.endswith(".TW"): # 台股用 Sinopac
+        close_df = get_tw_close_prices(symbol, x_days + DEFAULT_LOOKBACK_PADDING_DAYS)
+        close_series = format_tw_close_series(close_df)
+        close_df = close_df[['ts', 'Close']] # for print only
+    else: # 美股用 yfinance
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period=f"{x_days + DEFAULT_LOOKBACK_PADDING_DAYS}d", interval="1d")
+        df_reset = df.reset_index()
+        close_df = df_reset[['Date', 'Close']]
+        close_series = df["Close"].squeeze() # 只取 Close 欄位並 squeeze 成 series
+
+    print(f"{symbol} close_dataframe: {close_df}")
+    return close_series
+
+
+def calculate_price_change_pct(close_series, x_days: int) -> float:
+    today = float(close_series.iloc[-1].item())
+    past = float(close_series.iloc[-x_days].item())
+    return (today - past) / past * 100
+
+
+def _exceeds_drop_threshold(drop: float, y_percent: float) -> bool:
+    return drop < 0 and abs(drop) >= y_percent
 
 
 def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
@@ -167,7 +185,6 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
 
     # 只下載一次 close_series，後面全部重用
     close_series = download_close_prices(rule.symbol, rule.x_days)
-    print(f"{rule.symbol} close_series: {close_series}")
 
     # 最近一筆日線資料日期是否為今日，否則視為尚未開盤或休市，跳過
     if not has_today_data(close_series, tz, rule.symbol):
@@ -177,32 +194,23 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
         print(f"{rule.symbol}: not enough data")
         return None
 
-    today = float(close_series.iloc[-1].item())
-    past = float(close_series.iloc[-rule.x_days].item())
-    drop = (today - past) / past * 100
-    
-    #Refactor point1 start# #AI提示#
-    # 條件 1：漲跌幅絕對值 >= y_percent
-    hit_threshold = (drop < 0) and (abs(drop) >= float(rule.y_percent))
-    # 條件 2：關盤後 隔一段特定時間 發最終報表
-    is_today_final_report = is_today_final_report_time(market_name, now)
+    drop = calculate_price_change_pct(close_series, rule.x_days)
+    is_final_report = is_today_final_report_time(market_name, now)
 
-    if not (hit_threshold or is_today_final_report):
-        print(f"{rule.symbol}: 變動未超過門檻且非最終報表時間，不送出 LINE 訊息")
+    if not (_exceeds_drop_threshold(drop, rule.y_percent) or is_final_report):
+        print(f"{rule.symbol}: {drop:.2f}% 變動未超過門檻且非最終報表時間，不送出 LINE 訊息")
         return None
-     #Refactor point1 end#
-     
-    alert = "ALERT" if drop <= -rule.y_percent else "not triggered"
-    
-    print(f"{rule.symbol}: {drop:.2f}% in {rule.x_days} days " f"(threshold: {rule.y_percent}%) - {alert}")
 
-    history_series = close_series.iloc[-rule.x_days :]
+    alert_status = "ALERT" if _exceeds_drop_threshold(drop, rule.y_percent) else "not triggered"
+    print(f"{rule.symbol}: {drop:.2f}% in {rule.x_days} days (threshold: {rule.y_percent}%) - {alert_status}")
+
+    history_series = close_series.iloc[-rule.x_days:]
     start_date = history_series.index[0].strftime("%m-%d")
     end_date = history_series.index[-1].strftime("%m-%d")
     history_text = format_history(history_series)
 
-    return build_bubble(rule.symbol, start_date,end_date, rule.x_days, 
-                        drop, rule.y_percent, history_text, is_final_report=is_today_final_report)
+    return build_bubble(rule.symbol, start_date, end_date, rule.x_days,
+                        drop, rule.y_percent, history_text, is_final_report=is_final_report)
 
 
 def format_history(close_series) -> str:
@@ -226,6 +234,9 @@ def main() -> None:
         return
     
     send_line(build_carousel(bubbles))
+
+    # Sinopac API 登出
+    logout_api()
 
 
 if __name__ == "__main__":
