@@ -9,7 +9,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+      
+      - name: Decode PFX File
+        run: |
+          # 從 Secret 讀取字串並還原成檔案
+          echo "${{ secrets.PFX_BASE64 }}" | base64 --decode > Sinopac.pfx
+          
+          
       - name: Cache pip
         uses: actions/cache@v4
         with:
