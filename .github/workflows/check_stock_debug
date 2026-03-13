@@ -1,0 +1,58 @@
+name: stock checker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Decode PFX File
+        run: |
+          # 從 Secret 讀取字串並還原成檔案
+          echo "${{ secrets.PFX_BASE64 }}" | base64 --decode > Sinopac.pfx
+          
+          
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+
+      - name: 執行 Python 並直接顯示在摘要頁
+        run: |
+          # 1. 先把標題寫進摘要
+          echo "### 📈 股票追蹤執行日誌 (${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          
+          # 2. 用程式碼區塊包起來，讓 Log 好讀
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          
+          # 3. 執行 Python，同時把輸出導向到摘要檔案
+          # 這裡使用 2>&1 把錯誤也抓進來，並用 tee 同時印在畫面與寫入檔案
+          python check_stock_debug.py 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          
+          # 4. 結束程式碼區塊
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        env:
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
+          SINOPAC_API_KEY: ${{ secrets.SINOPAC_API_KEY }}
+          SINOPAC_SECRET_KEY: ${{ secrets.SINOPAC_SECRET_KEY }}
+          SINOPAC_CA_PATH: ${{ secrets.SINOPAC_CA_PATH }}
+          SINOPAC_CA_PW: ${{ secrets.SINOPAC_CA_PW }}
