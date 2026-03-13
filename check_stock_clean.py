@@ -88,7 +88,7 @@ def _get_session_hours(market_name: str) -> tuple[datetime.time, datetime.time]:
 
 
 def is_market_open(symbol: str, now: datetime.datetime) -> bool:
-    return True
+    # return True
     tz, market_name = get_market_timezone(symbol)
     session_start, session_end = _get_session_hours(market_name)
     local_now = now.astimezone(tz)
