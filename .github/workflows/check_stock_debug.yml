@@ -1,4 +1,4 @@
-name: stock checker
+name: stock checker debug
 
 on:
   workflow_dispatch:
