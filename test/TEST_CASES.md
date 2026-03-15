@@ -147,11 +147,12 @@
 
 測試內容：
 
-- 將歷史收盤價資料格式化為文字
+- 美股：日期格式為 `MM-DD`
+- 台股：使用 `ts` 對應的時間戳記字串輸出
 
 目的：
 
-確保顯示在 LINE 訊息中的歷史資料格式正確。
+確保 LINE 訊息中的歷史資料可依市場正確顯示日期格式。
 
 ---
 
@@ -182,7 +183,7 @@
 - `init_api`/`logout_api`：API 初始化與登出流程、快取與重複呼叫、資源釋放
 - `get_tw_close_prices`：台股收盤價資料取得流程（含 symbol 處理、資料轉換）
 - `get_recent_closing_prices`：資料分組、天數裁切、欄位正確性
-- `format_tw_close_series`：DataFrame 轉 Series，index 與資料正確性
+- `format_tw_close_series`：DataFrame 轉 Series，使用 `ts` 欄位作為 index 並驗證資料正確性
 
 目的：
 

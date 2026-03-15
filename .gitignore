@@ -2,6 +2,7 @@
 **/__pycache__/
 **/*.log 
 **/.vscode/*
+**/Sinopac.pfx
 
 # coverage/測試報告相關
 .coverage

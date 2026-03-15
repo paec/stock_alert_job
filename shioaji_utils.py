@@ -60,6 +60,6 @@ def get_recent_closing_prices(data_frame, days=3):
 
 
 def format_tw_close_series(close_df):
-    close_series = pd.Series(close_df['Close'].values, index=pd.to_datetime(close_df['Date']))
+    close_series = pd.Series(close_df['Close'].values, index=pd.to_datetime(close_df['ts']))
     close_series.index.name = 'Date'
     return close_series

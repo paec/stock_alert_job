@@ -542,12 +542,22 @@ class BuildStockBubbleTests(unittest.TestCase):
 
 
 class FormatHistoryTests(unittest.TestCase):
-    def test_format_history_returns_date_price_lines(self):
+    def test_format_history_returns_mm_dd_lines_for_us_market(self):
         close_series = make_close_series([100.0, 101.25], tz="Asia/Taipei")
 
-        history = stock_job.format_history(close_series)
+        history = stock_job.format_history(close_series, isTW=False)
 
         self.assertEqual(history, "03-03: 100.00\n03-04: 101.25")
+
+    def test_format_history_returns_timestamp_lines_for_tw_market(self):
+        close_series = make_close_series([100.0, 101.25], tz="Asia/Taipei")
+
+        history = stock_job.format_history(close_series, isTW=True)
+
+        self.assertEqual(
+            history,
+            "2026-03-03 00:00:00+08:00: 100.00\n2026-03-04 00:00:00+08:00: 101.25",
+        )
 
 
 class MainTests(unittest.TestCase):

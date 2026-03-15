@@ -152,15 +152,12 @@ def download_close_prices(symbol: str, x_days: int):
     if symbol.endswith(".TW"): # 台股用 Sinopac
         close_df = get_tw_close_prices(symbol, x_days + DEFAULT_LOOKBACK_PADDING_DAYS)
         close_series = format_tw_close_series(close_df)
-        close_df = close_df[['ts', 'Close']] # for print only
     else: # 美股用 yfinance
         ticker = yf.Ticker(symbol)
         df = ticker.history(period=f"{x_days + DEFAULT_LOOKBACK_PADDING_DAYS}d", interval="1d")
-        df_reset = df.reset_index()
-        close_df = df_reset[['Date', 'Close']]
-        close_series = df["Close"].squeeze() # 只取 Close 欄位並 squeeze 成 series
+        close_series = df["Close"].squeeze() # 只取 Close 欄位並 squeeze 成 series (index 是date，value 是Close)
 
-    print(f"{symbol} close_dataframe: {close_df}")
+    print(f"{symbol} close_series: {close_series}")
     return close_series
 
 
@@ -207,16 +204,17 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     history_series = close_series.iloc[-rule.x_days:]
     start_date = history_series.index[0].strftime("%m-%d")
     end_date = history_series.index[-1].strftime("%m-%d")
-    history_text = format_history(history_series)
+    history_text = format_history(history_series, isTW=rule.symbol.endswith(".TW"))
 
     return build_bubble(rule.symbol, start_date, end_date, rule.x_days,
                         drop, rule.y_percent, history_text, is_final_report=is_final_report)
 
 
-def format_history(close_series) -> str:
+def format_history(close_series, isTW: bool) -> str:
     lines = []
     for idx, price in zip(close_series.index, close_series.values):
-        lines.append(f"{idx.strftime('%m-%d')}: {float(price):.2f}")
+        date_format = idx if isTW else idx.strftime('%m-%d')
+        lines.append(f"{date_format}: {float(price):.2f}")
     return "\n".join(lines)
 
 

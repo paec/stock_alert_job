@@ -36,9 +36,9 @@ class TestShioajiUtils(unittest.TestCase):
         self.assertIn('ts', result.columns)
 
     def test_format_tw_close_series(self):
-        # Prepare a DataFrame with Date and Close columns
+        # Prepare a DataFrame with ts and Close columns
         df = pd.DataFrame({
-            "Date": ["2024-01-01", "2024-01-02"],
+            "ts": ["2024-01-01 13:30:00", "2024-01-02 13:30:00"],
             "Close": [100, 101]
         })
         series = shioaji_utils.format_tw_close_series(df)
