@@ -433,6 +433,26 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_is_market_open.assert_called_once()
 
     @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    @patch("check_stock_clean.build_bubble", return_value={"type": "bubble", "forced": True})
+    @patch("check_stock_clean.download_close_prices")
+    @patch("check_stock_clean.is_market_open", return_value=False)
+    def test_build_stock_bubble_force_send_bypasses_market_and_threshold_checks(
+        self,
+        mock_is_market_open,
+        mock_download_close_prices,
+        mock_build_bubble,
+    ):
+        FixedDateTime.frozen_now = self.now
+        mock_download_close_prices.return_value = make_close_series([100.0, 101.0, 101.0, 101.0], start="2026-03-07")
+
+        with patch("check_stock_clean.FORCE_SEND_REPORT", True):
+            bubble = stock_job.build_stock_bubble(self.rule)
+
+        self.assertEqual(bubble, {"type": "bubble", "forced": True})
+        mock_is_market_open.assert_not_called()
+        self.assertFalse(mock_build_bubble.call_args.kwargs["is_final_report"])
+
+    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
     @patch("check_stock_clean.download_close_prices")
     @patch("check_stock_clean.is_market_open", return_value=True)
     def test_build_stock_bubble_returns_none_when_price_history_is_too_short(

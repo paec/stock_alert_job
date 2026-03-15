@@ -15,6 +15,16 @@ LINE_TOKEN = os.getenv("LINE_TOKEN", "")
 LINE_BROADCAST_URL = "https://api.line.me/v2/bot/message/broadcast"
 DEFAULT_LOOKBACK_PADDING_DAYS = 5
 
+
+def _env_to_bool(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+FORCE_SEND_REPORT = _env_to_bool("FORCE_SEND_REPORT", False)
+
 @dataclass(frozen=True)
 class Rule:
     symbol: str
@@ -177,14 +187,14 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     now = datetime.datetime.now(tz)
 
     # 先用「時間區間」判斷是否有可能是開盤時間
-    if not is_market_open(rule.symbol, now):
+    if not FORCE_SEND_REPORT and not is_market_open(rule.symbol, now):
         return None
 
     # 只下載一次 close_series，後面全部重用
     close_series = download_close_prices(rule.symbol, rule.x_days)
 
     # 最近一筆日線資料日期是否為今日，否則視為尚未開盤或休市，跳過
-    if not has_today_data(close_series, tz, rule.symbol):
+    if not FORCE_SEND_REPORT and not has_today_data(close_series, tz, rule.symbol):
         return None
         
     if len(close_series) < rule.x_days + 1:
@@ -193,12 +203,16 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
 
     drop = calculate_price_change_pct(close_series, rule.x_days)
     is_final_report = is_today_final_report_time(market_name, now)
+    should_send = FORCE_SEND_REPORT or _exceeds_drop_threshold(drop, rule.y_percent) or is_final_report
 
-    if not (_exceeds_drop_threshold(drop, rule.y_percent) or is_final_report):
+    if not should_send:
         print(f"{rule.symbol}: {drop:.2f}% 變動未超過門檻且非最終報表時間，不送出 LINE 訊息")
         return None
 
-    alert_status = "ALERT" if _exceeds_drop_threshold(drop, rule.y_percent) else "not triggered"
+    if FORCE_SEND_REPORT:
+        alert_status = "FORCED_SEND"
+    else:
+        alert_status = "ALERT" if _exceeds_drop_threshold(drop, rule.y_percent) else "not triggered"
     print(f"{rule.symbol}: {drop:.2f}% in {rule.x_days} days (threshold: {rule.y_percent}%) - {alert_status}")
 
     history_series = close_series.iloc[-rule.x_days:]
