@@ -13,3 +13,8 @@ set CONFIG_API_URL=https://your-domain.pythonanywhere.com/api/config
 set LINE_TOKEN=your_line_token
 python script/check_stock.py
 ```
+
+
+## 3. Run Test case
+
+./run_test.ps1 => generate report coverage_summary.txt and coverage.xml (for vs code Watch)

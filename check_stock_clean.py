@@ -232,11 +232,12 @@ def main() -> None:
     if not bubbles:
         print("No valid stock report to send.")
         return
-    
-    send_line(build_carousel(bubbles))
 
-    # Sinopac API 登出
-    logout_api()
+    try:
+        send_line(build_carousel(bubbles))
+    finally:
+        # Sinopac API 登出
+        logout_api()
 
 
 if __name__ == "__main__":

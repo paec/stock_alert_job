@@ -2,3 +2,9 @@
 **/__pycache__/
 **/*.log 
 **/.vscode/*
+
+# coverage/測試報告相關
+.coverage
+coverage.xml
+coverage_summary.txt
+htmlcov/

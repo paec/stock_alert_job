@@ -15,10 +15,14 @@ Write-Host "Virtual environment activated."
 # Step 3: Install dependencies
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install pandas pytz requests yfinance
+pip install coverage pandas pytz requests yfinance 
 
 # Step 4: Run tests
-python -m unittest discover -s test -p "test*.py" -v
+python -m coverage run -m unittest discover -s . -p "test_*.py" -v
+# 產生報告供 VS Code 顯示
+python -m coverage xml
+#  產生文字版摘要
+python -m coverage report -m > coverage_summary.txt
 
 # Step 5: Deactivate virtual environment
 deactivate

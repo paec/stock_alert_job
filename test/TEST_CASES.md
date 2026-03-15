@@ -76,12 +76,14 @@
 
 測試情境：
 
+- close_series 為空時回傳 False
 - 最後一筆日線不是今天時回傳 False
 - 最後一筆日線是今天時回傳 True
+- 台股 naive timestamp index（無時區）可正確判斷
 
 目的：
 
-確保系統只在 `yfinance` 已提供 **當日日線資料** 時才繼續產生報表。
+確保系統只在資料完整且日期正確時才繼續產生報表，並能兼容台股常見資料型態。
 
 ---
 
@@ -91,26 +93,47 @@
 
 測試內容：
 
-- 正確下載股票收盤價資料
+- 美股：透過 `yf.Ticker(symbol).history(...)` 取得日線資料
+- 台股：透過 `get_tw_close_prices` + `format_tw_close_series` 取得日線資料
 
 目的：
 
-確保 `yfinance` 資料取得流程正常。
+確保美股/台股兩條下載流程都能正常運作。
 
 ---
 
-# 7. 股票通知 Bubble 生成 (Stock Bubble)
+# 7. 市場與報表時間輔助函式
+
+測試函式：`get_market_timezone`、`is_today_final_report_time`
+
+測試內容：
+
+- `.TW` 代號映射到台北時區與台股市場
+- 非 `.TW` 代號映射到紐約時區與美股市場
+- 台股最終報表時間僅在 `14:05` 為 True
+- 美股最終報表時間僅在 `16:45` 為 True
+
+目的：
+
+確保市場辨識與最終報表時間判斷符合預期。
+
+---
+
+# 8. 股票通知 Bubble 生成 (Stock Bubble)
 
 測試函式：`build_stock_bubble`
 
 測試情境：
 
 - 市場未開時 **不生成**
+- 今日資料不存在時 **不生成**
 - 資料不足時 **不生成**
 - 未達跌幅門檻且非最終報表時間 **不生成**
 - 跌幅達門檻時 **生成**
 - 最終報表時間時 **生成**
+- 台股最終報表時間（14:05）即使未達跌幅門檻仍 **生成**
 - 台股時區判斷
+- 台股整合流程（market open + has_today_data + threshold）
 
 目的：
 
@@ -118,7 +141,7 @@
 
 ---
 
-# 8. 歷史資料格式化 (History Formatting)
+# 9. 歷史資料格式化 (History Formatting)
 
 測試函式：`format_history`
 
@@ -132,18 +155,39 @@
 
 ---
 
-# 9. 主流程 (Main Flow)
+# 10. 主流程 (Main Flow)
 
 測試函式：`main`
 
 測試情境：
 
 - 有股票通知 bubble 時發送 **carousel**
+- 有發送時會呼叫 `logout_api`
 - 沒有 bubble 時 **不發送訊息**
+- 沒有發送時不呼叫 `logout_api`
+- **即使 send_line 發生例外，logout_api 也一定會被呼叫**（try/finally 機制，有測試驗證）
 
 目的：
 
-確保整個系統流程能正常運作。
+確保整個系統流程能正常運作，並且在發送訊息失敗時也能安全登出資源。
+
+---
+
+# 11. shioaji_utils.py 工具模組單元測試
+
+測試檔案：test_shioaji_utils.py
+
+測試內容：
+
+- `init_api`/`logout_api`：API 初始化與登出流程、快取與重複呼叫、資源釋放
+- `get_tw_close_prices`：台股收盤價資料取得流程（含 symbol 處理、資料轉換）
+- `get_recent_closing_prices`：資料分組、天數裁切、欄位正確性
+- `format_tw_close_series`：DataFrame 轉 Series，index 與資料正確性
+
+目的：
+
+- 確保 shioaji_utils.py 工具模組的每個 function 都能獨立正確運作，並能被主流程安全調用。
+- 測試 mock API 行為，避免連線外部資源。
 
 ---
 
@@ -155,6 +199,7 @@
 - API 取得規則與異常處理
 - LINE 訊息發送
 - 市場開盤判斷
+- 市場/時區映射與最終報表時間判斷
 - 當日日線資料判斷
 - 股票資料下載
 - Flex Message 生成
