@@ -45,7 +45,7 @@ jobs:
           
           # 3. 執行 Python，同時把輸出導向到摘要檔案
           # 這裡使用 2>&1 把錯誤也抓進來，並用 tee 同時印在畫面與寫入檔案
-          python check_stock_clean.py 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          python check_stock.py 2>&1 | tee -a $GITHUB_STEP_SUMMARY
           
           # 4. 結束程式碼區塊
           echo '```' >> $GITHUB_STEP_SUMMARY

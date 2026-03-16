@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pandas as pd
 import pytz
 
-import check_stock_clean as stock_job
+import check_stock as stock_job
 
 
 class FixedDateTime(dt.datetime):
@@ -38,7 +38,7 @@ class ParseRuleTests(unittest.TestCase):
 
 
 class FetchRulesTests(unittest.TestCase):
-    @patch("check_stock_clean.requests.get")
+    @patch("check_stock.requests.get")
     def test_fetch_rules_returns_valid_rules_from_api(self, mock_get):
         mock_get.return_value.json.return_value = {
             "rules": [
@@ -60,7 +60,7 @@ class FetchRulesTests(unittest.TestCase):
 
         mock_get.assert_called_once_with("https://example.test/config", timeout=20)
 
-    @patch("check_stock_clean.requests.get")
+    @patch("check_stock.requests.get")
     def test_fetch_rules_falls_back_to_default_rules_on_error(self, mock_get):
         mock_get.side_effect = RuntimeError("boom")
 
@@ -75,7 +75,7 @@ class FetchRulesTests(unittest.TestCase):
             ],
         )
 
-    @patch("check_stock_clean.requests.get")
+    @patch("check_stock.requests.get")
     def test_fetch_rules_falls_back_when_api_returns_no_valid_rules(self, mock_get):
         mock_get.return_value.json.return_value = {
             "rules": [
@@ -91,13 +91,13 @@ class FetchRulesTests(unittest.TestCase):
 
 
 class SendLineTests(unittest.TestCase):
-    @patch("check_stock_clean.requests.post")
+    @patch("check_stock.requests.post")
     def test_send_line_skips_when_token_is_missing(self, mock_post):
         stock_job.send_line({"type": "carousel", "contents": []}, token="")
 
         mock_post.assert_not_called()
 
-    @patch("check_stock_clean.requests.post")
+    @patch("check_stock.requests.post")
     def test_send_line_posts_expected_payload(self, mock_post):
         mock_post.return_value.status_code = 200
         mock_post.return_value.text = "ok"
@@ -124,7 +124,7 @@ class SendLineTests(unittest.TestCase):
         )
 
     @patch("builtins.print") #mock_print會攔截print函數的調用，讓我們能夠檢查print是否被正確調用以及輸出的內容。
-    @patch("check_stock_clean.requests.post")
+    @patch("check_stock.requests.post")
     def test_send_line_prints_error_and_response_when_line_api_fails(self, mock_post, mock_print):
         mock_post.return_value.status_code = 500
         mock_post.return_value.text = "server error"
@@ -186,7 +186,7 @@ class IsMarketOpenTests(unittest.TestCase):
 
 
 class HasTodayDataTests(unittest.TestCase):
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
     def test_has_today_data_returns_false_for_empty_series(self):
         tz = pytz.timezone("America/New_York")
         FixedDateTime.frozen_now = tz.localize(dt.datetime(2026, 3, 10, 10, 15))
@@ -196,7 +196,7 @@ class HasTodayDataTests(unittest.TestCase):
 
         self.assertFalse(has_data)
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
     def test_has_today_data_returns_false_for_stale_daily_bar(self):
         tz = pytz.timezone("America/New_York")
         FixedDateTime.frozen_now = tz.localize(dt.datetime(2026, 3, 10, 10, 15))
@@ -206,7 +206,7 @@ class HasTodayDataTests(unittest.TestCase):
 
         self.assertFalse(has_data)
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
     def test_has_today_data_returns_true_for_today_daily_bar(self):
         tz = pytz.timezone("America/New_York")
         FixedDateTime.frozen_now = tz.localize(dt.datetime(2026, 3, 10, 10, 15))
@@ -216,7 +216,7 @@ class HasTodayDataTests(unittest.TestCase):
 
         self.assertTrue(has_data)
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
     def test_has_today_data_handles_naive_timestamp_index_for_tw_data(self):
         tz = pytz.timezone("Asia/Taipei")
         FixedDateTime.frozen_now = tz.localize(dt.datetime(2026, 3, 10, 9, 30))
@@ -231,7 +231,7 @@ class HasTodayDataTests(unittest.TestCase):
 
 
 class DownloadClosePricesTests(unittest.TestCase):
-    @patch("check_stock_clean.yf.Ticker")
+    @patch("check_stock.yf.Ticker")
     def test_download_close_prices_returns_close_series_for_us_symbols(self, mock_ticker_cls):
         history_df = pd.DataFrame(
             {"Close": [100.0, 101.5]},
@@ -250,8 +250,8 @@ class DownloadClosePricesTests(unittest.TestCase):
         mock_ticker_cls.assert_called_once_with("VOO")
         mock_ticker.history.assert_called_once_with(period="10d", interval="1d")
 
-    @patch("check_stock_clean.format_tw_close_series")
-    @patch("check_stock_clean.get_tw_close_prices")
+    @patch("check_stock.format_tw_close_series")
+    @patch("check_stock.get_tw_close_prices")
     def test_download_close_prices_uses_shioaji_helpers_for_tw_symbols(
         self,
         mock_get_tw_close_prices,
@@ -351,11 +351,11 @@ class ExceedsDropThresholdTests(unittest.TestCase):
 
 class BuildStockBubbleTests(unittest.TestCase):
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.build_bubble", return_value={"type": "bubble", "market": "tw"})
-    @patch("check_stock_clean.has_today_data", return_value=True)
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble", "market": "tw"})
+    @patch("check_stock.has_today_data", return_value=True)
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
     def test_build_stock_bubble_tw_integration(
         self,
         mock_is_market_open,
@@ -389,11 +389,11 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertLess(args[4], 0)
         self.assertGreaterEqual(abs(args[4]), 5.0)
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.build_bubble", return_value={"type": "bubble", "market": "tw-final"})
-    @patch("check_stock_clean.has_today_data", return_value=True)
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble", "market": "tw-final"})
+    @patch("check_stock.has_today_data", return_value=True)
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
     def test_build_stock_bubble_tw_builds_bubble_on_final_report_time_without_alert(
         self,
         mock_is_market_open,
@@ -422,8 +422,8 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.rule = stock_job.Rule("VOO", 3, 5.0)
         self.now = pytz.timezone("America/New_York").localize(dt.datetime(2026, 3, 10, 10, 15))
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.is_market_open", return_value=False)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.is_market_open", return_value=False)
     def test_build_stock_bubble_returns_none_when_market_is_closed(self, mock_is_market_open):
         FixedDateTime.frozen_now = self.now
 
@@ -432,10 +432,10 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertIsNone(bubble)
         mock_is_market_open.assert_called_once()
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.build_bubble", return_value={"type": "bubble", "forced": True})
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=False)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble", "forced": True})
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=False)
     def test_build_stock_bubble_force_send_bypasses_market_and_threshold_checks(
         self,
         mock_is_market_open,
@@ -445,16 +445,16 @@ class BuildStockBubbleTests(unittest.TestCase):
         FixedDateTime.frozen_now = self.now
         mock_download_close_prices.return_value = make_close_series([100.0, 101.0, 101.0, 101.0], start="2026-03-07")
 
-        with patch("check_stock_clean.FORCE_SEND_REPORT", True):
+        with patch("check_stock.FORCE_SEND_REPORT", True):
             bubble = stock_job.build_stock_bubble(self.rule)
 
         self.assertEqual(bubble, {"type": "bubble", "forced": True})
         mock_is_market_open.assert_not_called()
         self.assertFalse(mock_build_bubble.call_args.kwargs["is_final_report"])
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
     def test_build_stock_bubble_returns_none_when_price_history_is_too_short(
         self,
         mock_is_market_open,
@@ -467,10 +467,10 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertIsNone(bubble)
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.has_today_data", return_value=False)
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.has_today_data", return_value=False)
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
     def test_build_stock_bubble_returns_none_when_today_data_is_missing(
         self,
         mock_is_market_open,
@@ -485,9 +485,9 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertIsNone(bubble)
         mock_has_today_data.assert_called_once()
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.build_bubble")
-    @patch("check_stock_clean.download_close_prices")
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble")
+    @patch("check_stock.download_close_prices")
     def test_build_stock_bubble_returns_none_when_not_threshold_and_not_final_report_time(
         self,
         mock_download_close_prices,
@@ -501,10 +501,10 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertIsNone(bubble)
         mock_build_bubble.assert_not_called()
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.build_bubble", return_value={"type": "bubble"})
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble"})
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
     def test_build_stock_bubble_builds_bubble_when_drop_hits_threshold(
         self,
         mock_is_market_open,
@@ -528,10 +528,10 @@ class BuildStockBubbleTests(unittest.TestCase):
             is_final_report=False,
         )
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.build_bubble", return_value={"type": "bubble"})
-    @patch("check_stock_clean.download_close_prices")
-    @patch("check_stock_clean.is_market_open", return_value=True)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble"})
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
     def test_build_stock_bubble_builds_bubble_on_final_report_time_even_without_alert(
         self,
         mock_is_market_open,
@@ -548,8 +548,8 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertGreater(mock_build_bubble.call_args.args[4], 0)
         self.assertTrue(mock_build_bubble.call_args.kwargs["is_final_report"])
 
-    @patch("check_stock_clean.datetime.datetime", FixedDateTime)
-    @patch("check_stock_clean.is_market_open", return_value=False)
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.is_market_open", return_value=False)
     def test_build_stock_bubble_uses_taipei_time_for_tw_symbols(self, mock_is_market_open):
         FixedDateTime.frozen_now = pytz.UTC.localize(dt.datetime(2026, 3, 10, 1, 0))
 
@@ -581,11 +581,11 @@ class FormatHistoryTests(unittest.TestCase):
 
 
 class MainTests(unittest.TestCase):
-    @patch("check_stock_clean.logout_api")
-    @patch("check_stock_clean.send_line")
-    @patch("check_stock_clean.build_carousel", return_value={"type": "carousel"})
-    @patch("check_stock_clean.build_stock_bubble")
-    @patch("check_stock_clean.fetch_rules")
+    @patch("check_stock.logout_api")
+    @patch("check_stock.send_line")
+    @patch("check_stock.build_carousel", return_value={"type": "carousel"})
+    @patch("check_stock.build_stock_bubble")
+    @patch("check_stock.fetch_rules")
     def test_main_sends_carousel_when_bubbles_exist(
         self,
         mock_fetch_rules,
@@ -603,11 +603,11 @@ class MainTests(unittest.TestCase):
         mock_send_line.assert_called_once_with({"type": "carousel"})
         mock_logout_api.assert_called_once()
 
-    @patch("check_stock_clean.logout_api")
-    @patch("check_stock_clean.send_line", side_effect=RuntimeError("send_line failed"))
-    @patch("check_stock_clean.build_carousel", return_value={"type": "carousel"})
-    @patch("check_stock_clean.build_stock_bubble", return_value={"type": "bubble"})
-    @patch("check_stock_clean.fetch_rules", return_value=[stock_job.Rule("VOO", 5, 5.0)])
+    @patch("check_stock.logout_api")
+    @patch("check_stock.send_line", side_effect=RuntimeError("send_line failed"))
+    @patch("check_stock.build_carousel", return_value={"type": "carousel"})
+    @patch("check_stock.build_stock_bubble", return_value={"type": "bubble"})
+    @patch("check_stock.fetch_rules", return_value=[stock_job.Rule("VOO", 5, 5.0)])
     def test_main_ensures_logout_api_on_send_line_failure(
         self,
         mock_fetch_rules,
