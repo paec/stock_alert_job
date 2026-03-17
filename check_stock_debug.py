@@ -3,19 +3,19 @@ from datetime import datetime
 
 ticker = yf.Ticker("0050.TW")
 df = ticker.history(period=f"10d", interval="1d")
-print(df)
+print(f"history daily\n\n: {df}")
 
 # 嘗試從 basic_info 抓取
 try:
     # 這裡通常是最後成交時間 (秒級或毫秒級)
     ts = ticker.basic_info['last_price_timestamp'] 
-    print("可用欄位有:", ticker.basic_info.keys())
     # 判斷是秒還是毫秒 (10位 vs 13位)
     if ts > 1e11: ts /= 1000 
     
     print(f"更新時間: {datetime.fromtimestamp(ts)}")
 except Exception as e:
-    print("basic_info 也不支援時間戳記")
+    print("可用欄位有:", ticker.basic_info.keys())
+    print("basic_info 也不支援時間戳記\n\n")
     
     
 # 抓取最近 1 分鐘的資料 (這會回傳包含最新一筆的時間)
@@ -24,20 +24,20 @@ df_now = ticker.history(period="1d", interval="1m")
 if not df_now.empty:
     latest_time = df_now.index[-1]
     latest_price = df_now['Close'].iloc[-1]
-    print(f"最新成交時間: {latest_time}")
-    print(f"最新價格: {latest_price}")
+    print(f"history 最新成交時間: {latest_time}")
+    print(f"history 最新價格: {latest_price}")
 else:
-    print("目前非開盤時間或抓不到分鐘資料")
+    print("history 目前非開盤時間或抓不到分鐘資料")
     
     
 symbol = "0050.TW" 
 # 1. 下載日 K 資料 (例如最近 5 天)
 df_daily = yf.download(symbol, period="5d", interval="1d")
-print(f"daily: {df_daily}")
+print(f"daily download\n: {df_daily}")
 # 2. 下載最近 1 天的分鐘線 (用來取得「最後成交時間」)
 # 因為只需要最後一筆時間，所以 period="1d", interval="1m" 負擔最小
 df_min = yf.download(symbol, period="1d", interval="1m")
-print(f"min: {df_min}")
+print(f"min download\n\n: {df_min}")
 # 取得 1m 資料的最後一個索引 (即為該股目前的最新成交時間)
 if not df_min.empty:
     last_update_time = df_min.index[-1]
