@@ -47,16 +47,3 @@ if not df_min.empty:
 else:
     last_update_time = "無法取得更新時間"
 
-
-# 3. 整理輸出
-print(f"=== {symbol} 查詢結果 ===")
-# 取得今日日線的最末行資料
-latest_row = df_daily.tail(1).copy()
-
-# 把精確時間補進去 (新增一個欄位)
-latest_row['Last_Update_Time'] = last_update_time
-
-print(latest_row[['Open', 'High', 'Low', 'Close', 'Volume', 'Last_Update_Time']])
-
-# 如果你想把這個時間套用到整張日線表的最後一列
-df_daily.loc[df_daily.index[-1], 'Update_Timestamp'] = last_update_time
