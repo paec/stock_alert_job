@@ -44,6 +44,7 @@ if not df_min.empty:
     last_update_time = df_min.index[-1]
 else:
     last_update_time = "無法取得更新時間"
+symbol = "0050.TW"
 
 # 3. 整理輸出
 print(f"=== {symbol} 查詢結果 ===")
