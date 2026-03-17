@@ -14,7 +14,7 @@ try:
     
     print(f"更新時間: {datetime.fromtimestamp(ts)}")
 except Exception as e:
-    print("可用欄位有:", ticker.basic_info.keys())
+    print("fast_info可用欄位有:", ticker.fast_info.keys())
     print("basic_info 也不支援時間戳記\n\n")
     
     
