@@ -3,20 +3,28 @@ from datetime import datetime
 
 ticker = yf.Ticker("0050.TW")
 df = ticker.history(period=f"10d", interval="1d")
-close_series = df["Close"].squeeze() # 只取 Close 欄位並 squeeze 成 series (index 是date，value 是Close)
-
 print(df)
+
+# 嘗試從 basic_info 抓取
 try:
-    ts_ms = ticker.fast_info['last_price_timestamp'] # 有些版本回傳毫秒 (ms)
+    # 這裡通常是最後成交時間 (秒級或毫秒級)
+    ts = ticker.basic_info['last_price_timestamp'] 
     
-    # 如果數字太大（毫秒級），除以 1000 轉為秒
-    if ts_ms > 1e11: 
-        ts = ts_ms / 1000
-    else:
-        ts = ts_ms
-        
-    last_time = datetime.fromtimestamp(ts)
-    print(f"資料更新時間: {last_time}")
-except KeyError:
-    # 如果還是不行，印出所有可用欄位檢查
-    print("可用欄位有:", ticker.fast_info.keys())
+    # 判斷是秒還是毫秒 (10位 vs 13位)
+    if ts > 1e11: ts /= 1000 
+    
+    print(f"更新時間: {datetime.fromtimestamp(ts)}")
+except Exception as e:
+    print("basic_info 也不支援時間戳記")
+    
+    
+# 抓取最近 1 分鐘的資料 (這會回傳包含最新一筆的時間)
+df_now = ticker.history(period="1d", interval="1m")
+
+if not df_now.empty:
+    latest_time = df_now.index[-1]
+    latest_price = df_now['Close'].iloc[-1]
+    print(f"最新成交時間: {latest_time}")
+    print(f"最新價格: {latest_price}")
+else:
+    print("目前非開盤時間或抓不到分鐘資料")
