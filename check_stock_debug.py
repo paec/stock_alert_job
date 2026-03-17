@@ -33,7 +33,7 @@ else:
 symbol = "0050.TW" 
 # 1. 下載日 K 資料 (例如最近 5 天)
 df_daily = yf.download(symbol, period="5d", interval="1d")
-
+print(df_daily)
 # 2. 下載最近 1 天的分鐘線 (用來取得「最後成交時間」)
 # 因為只需要最後一筆時間，所以 period="1d", interval="1m" 負擔最小
 df_min = yf.download(symbol, period="1d", interval="1m")
