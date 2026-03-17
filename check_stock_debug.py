@@ -1,5 +1,21 @@
 import yfinance as yf
 from datetime import datetime
+import pandas as pd
+
+# 顯示所有欄位
+pd.set_option('display.max_columns', None)
+
+# 顯示所有列（小心，大表會很長）
+pd.set_option('display.max_rows', None)
+
+# 避免每行被折行，可以調整寬度
+pd.set_option('display.width', 0)          # 自動調整
+# 或指定最大寬度
+# pd.set_option('display.width', 200)
+
+# 顯示每欄最大字元數
+pd.set_option('display.max_colwidth', None)
+
 
 ticker = yf.Ticker("0050.TW")
 df = ticker.history(period=f"10d", interval="1d")
