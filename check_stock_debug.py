@@ -30,7 +30,7 @@ else:
     print("目前非開盤時間或抓不到分鐘資料")
     
     
-    
+symbol = "0050.TW" 
 # 1. 下載日 K 資料 (例如最近 5 天)
 df_daily = yf.download(symbol, period="5d", interval="1d")
 
@@ -44,7 +44,7 @@ if not df_min.empty:
     last_update_time = df_min.index[-1]
 else:
     last_update_time = "無法取得更新時間"
-symbol = "0050.TW"
+
 
 # 3. 整理輸出
 print(f"=== {symbol} 查詢結果 ===")
