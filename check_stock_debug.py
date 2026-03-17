@@ -15,13 +15,13 @@ pd.set_option('display.max_colwidth', None)
 ticker = yf.Ticker("0050.TW")
 df = ticker.history(period=f"10d", interval="1d")
 print(f"history daily:\n {df}")
-print(f"Close: {df['Close'].iloc[-1]}")  # 只印 Close 欄位
+
     
     
 # 抓取最近 1 分鐘的資料 (這會回傳包含最新一筆的時間)
 df_now = ticker.history(period="1d", interval="1m")
 print(f"history min:\n {df_now}")
-print(f"Close: {df_now['Close'].iloc[-1]}")  # 只印 Close 欄位
+
 if not df_now.empty:
     latest_time = df_now.index[-1]
     latest_price = df_now['Close'].iloc[-1]
@@ -35,12 +35,12 @@ symbol = "0050.TW"
 # 1. 下載日 K 資料 (例如最近 5 天)
 df_daily = yf.download(symbol, period="5d", interval="1d")
 print(f"daily download:\n {df_daily}")
-print(f"Close: {df_daily['Close'].iloc[-1]}")  # 只印 Close 欄位
+
 # 2. 下載最近 1 天的分鐘線 (用來取得「最後成交時間」)
 # 因為只需要最後一筆時間，所以 period="1d", interval="1m" 負擔最小
 df_min = yf.download(symbol, period="1d", interval="1m")
 print(f"min download:\n\n {df_min}")
-print(f"Close: {df_min['Close'].iloc[-1]}")  # 只印 Close 欄位
+
 # 取得 1m 資料的最後一個索引 (即為該股目前的最新成交時間)
 if not df_min.empty:
     last_update_time = df_min.index[-1]
