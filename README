@@ -1,10 +1,23 @@
-## 1. GitHub Actions Secrets
+## 1. 環境變數
 
-Set repository secrets:
-- `CONFIG_API_URL`: Your PythonAnywhere config API URL, e.g. `https://your-domain.pythonanywhere.com/api/config`
-- `LINE_TOKEN`: Your LINE Messaging API channel access token
+| 變數名稱            | 說明                                      | 預設值                    |
+|---------------------|-------------------------------------------|---------------------------|
+| `CONFIG_API_URL`    | Config API 網址                           | (pythonanywhere 範例網址) |
+| `LINE_TOKEN`        | LINE Messaging API channel access token   | 空白                      |
+| `FORCE_SEND_REPORT` | 強制傳送報告（`true`/`1`/`yes`/`on`）     | `false`                   |
+| `SINOPAC_API_KEY`   | 永豐金 API Key                            | 空白                      |
+| `SINOPAC_SECRET_KEY`| 永豐金 API Secret                         | 空白                      |
+| `SINOPAC_CA_PATH`   | 永豐金憑證路徑                            | `Sinopac.pfx`             |
+| `SINOPAC_CA_PW`     | 永豐金憑證密碼                            | 空白                      |
+| `SINOPAC_PERSON_ID` | 永豐金身分識別碼                          | `CY`                      |
+
+### 1.1 GitHub Actions Secrets
 
 Workflow file: `.github/workflows/check_stock.yml`
+
+於 repository secrets 設定以下變數：
+- `CONFIG_API_URL`
+- `LINE_TOKEN`
 
 ## 1.1 Config API fields for long-term drop trigger
 
