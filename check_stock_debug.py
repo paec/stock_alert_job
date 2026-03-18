@@ -12,7 +12,7 @@ pd.set_option('display.width', 0)          # 自動調整
 pd.set_option('display.max_colwidth', None)
 
 
-ticker = yf.Ticker("VOO")
+ticker = yf.Ticker("006208.TW")
 df = ticker.history(period=f"10d", interval="1d")
 print(f"\nhistory daily:\n {df}")
 
