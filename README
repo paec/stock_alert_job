@@ -6,6 +6,29 @@ Set repository secrets:
 
 Workflow file: `.github/workflows/check_stock.yml`
 
+## 1.1 Config API fields for long-term drop trigger
+
+In your config API response JSON, you can add:
+
+- `long_term_drop.days`: lookback days for long-term drop check (default `60`)
+- `long_term_drop.drop_percent`: drop threshold percent (default `10`)
+
+Example:
+
+```json
+{
+	"long_term_drop": {
+		"days": 60,
+		"drop_percent": 10
+	},
+	"rules": [
+		{"symbol": "VOO", "x_days": 5, "y_percent": 5}
+	]
+}
+```
+
+If these fields are missing or invalid, code falls back to `60` and `10`.
+
 ## 2. Test checker script locally
 
 ```bash

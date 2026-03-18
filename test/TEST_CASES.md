@@ -26,12 +26,14 @@
 測試情境：
 
 - 正常從 API 取得規則
+- API 可載入長線跌幅設定（`long_term_drop.days` / `long_term_drop.drop_percent`）
+- 長線設定缺值或格式錯誤時回退到預設值（60/10）
 - API 發生錯誤時回退到 **預設規則**
 - API 回傳無效規則時回退到 **預設規則**
 
 目的：
 
-確保系統在 API 不穩定或資料異常時仍能正常運作。
+確保系統在 API 不穩定或資料異常時仍能正常運作，且長線機制有穩定預設行為。
 
 ---
 
@@ -94,7 +96,7 @@
 測試內容：
 
 - 美股：透過 `yf.Ticker(symbol).history(...)` 取得日線資料
-- 台股：透過 `get_tw_close_prices` + `format_tw_close_series` 取得日線資料
+- 台股：透過 `get_tw_close_prices` + `format_tw_close_series` 透過永豐取得日線資料（目前主程式已暫時停用此分支，對應單元測試已加 `skip` 註記）(因為永豐API目前沒辦法一次取得超過14天前資料)
 
 目的：
 
@@ -129,16 +131,20 @@
 - 啟用 `FORCE_SEND_REPORT` 時，即使市場未開、未達門檻，仍可 **強制生成**
 - 今日資料不存在時 **不生成**
 - 資料不足時 **不生成**
-- 未達跌幅門檻且非最終報表時間 **不生成**
-- 跌幅達門檻時 **生成**
+- 未達短線跌幅門檻且非最終報表時間 **不生成**
+- 短線跌幅達門檻時 **生成**
+- 長線（`LONG_TERM_LOOKBACK_DAYS`，預設 60，可由 API 設定覆蓋）跌幅達門檻時 **生成**
 - 最終報表時間時 **生成**
 - 台股最終報表時間（14:05）即使未達跌幅門檻仍 **生成**
 - 台股時區判斷
 - 台股整合流程（market open + has_today_data + threshold）
+- 驗證傳入 `build_bubble` 的短/長期參數為動態天數（`short_lookback_days` / `long_lookback_days`），非硬編碼 5/60
+- 驗證傳入 `build_bubble` 的短/長期漲跌幅、對應日期與長線 threshold 參數正確
 
 目的：
 
-確保 LINE Flex Message 會在 **跌幅達門檻**、**收盤後最終報表時間** 或 **啟用 FORCE_SEND_REPORT 強制送出** 的條件下生成。
+確保 LINE Flex Message 會在 **短線跌幅觸發**、**長線跌幅觸發**、**收盤後最終報表時間** 或 **啟用 FORCE_SEND_REPORT 強制送出** 的條件下生成。
+並確保 short term 顯示依 `rule.y_percent` 判斷、long term 顯示依 `LONG_TERM_DROP_PERCENT` 判斷。
 
 ---
 
@@ -149,7 +155,7 @@
 測試內容：
 
 - 美股：日期格式為 `MM-DD`
-- 台股：使用 `ts` 對應的時間戳記字串輸出
+- 台股：目前同樣使用 Series index 輸出 `MM-DD`（與美股一致）
 
 目的：
 
@@ -193,6 +199,25 @@
 
 ---
 
+# 12. check_stock_utils.py 工具模組單元測試
+
+測試檔案：test_stock_utils.py
+
+測試內容：
+
+- `parse_positive_int` / `parse_positive_float`：正整數、正浮點解析與 fallback 行為
+- `get_market_timezone` / `get_session_hours`：市場與交易時段判斷
+- `is_today_final_report_time`：最終報表時點判斷
+- `calculate_price_change_pct`：報酬率計算正確性
+- `exceeds_drop_threshold` / `exceeds_long_term_drop_threshold`：跌幅觸發判斷
+- `format_history`：台股與美股歷史格式輸出
+
+目的：
+
+- 確保自 `check_stock.py` 拆出的通用工具方法可獨立驗證，降低重構後回歸風險。
+
+---
+
 # 測試覆蓋總結
 
 目前測試已涵蓋：
@@ -206,8 +231,13 @@
 - 股票資料下載
 - Flex Message 生成
 - FORCE_SEND_REPORT 強制送出模式
+- 長線跌幅觸發（含可設定 days/percent 與 fallback）
+- build_bubble 動態 lookback 欄位傳遞（短期=rule.x_days；長期=LONG_TERM_LOOKBACK_DAYS）
+- build_bubble 動態 lookback 日期傳遞（`YYYY-MM-DD`）
+- short/long 顯示邏輯分離，各自使用自己的 threshold 判斷與顏色規則
 - 歷史資料格式化
 - 系統主流程
+- 通用工具模組（stock_utils）
 
 這些測試涵蓋：
 

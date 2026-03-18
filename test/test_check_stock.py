@@ -38,9 +38,17 @@ class ParseRuleTests(unittest.TestCase):
 
 
 class FetchRulesTests(unittest.TestCase):
+    def setUp(self):
+        stock_job.LONG_TERM_LOOKBACK_DAYS = stock_job.DEFAULT_LONG_TERM_LOOKBACK_DAYS
+        stock_job.LONG_TERM_DROP_PERCENT = stock_job.DEFAULT_LONG_TERM_DROP_PERCENT
+
     @patch("check_stock.requests.get")
     def test_fetch_rules_returns_valid_rules_from_api(self, mock_get):
         mock_get.return_value.json.return_value = {
+            "long_term_drop": {
+                "days": 80,
+                "drop_percent": 12,
+            },
             "rules": [
                 {"symbol": "voo", "x_days": 5, "y_percent": 3},
                 {"symbol": "", "x_days": 5, "y_percent": 3},
@@ -57,11 +65,15 @@ class FetchRulesTests(unittest.TestCase):
                 stock_job.Rule("VT", 10, 7.5),
             ],
         )
+        self.assertEqual(stock_job.LONG_TERM_LOOKBACK_DAYS, 80)
+        self.assertEqual(stock_job.LONG_TERM_DROP_PERCENT, 12.0)
 
         mock_get.assert_called_once_with("https://example.test/config", timeout=20)
 
     @patch("check_stock.requests.get")
     def test_fetch_rules_falls_back_to_default_rules_on_error(self, mock_get):
+        stock_job.LONG_TERM_LOOKBACK_DAYS = 120
+        stock_job.LONG_TERM_DROP_PERCENT = 20.0
         mock_get.side_effect = RuntimeError("boom")
 
         rules = stock_job.fetch_rules("https://example.test/config")
@@ -74,6 +86,20 @@ class FetchRulesTests(unittest.TestCase):
                 stock_job.Rule("VT", 5, 5.0),
             ],
         )
+        self.assertEqual(stock_job.LONG_TERM_LOOKBACK_DAYS, 60)
+        self.assertEqual(stock_job.LONG_TERM_DROP_PERCENT, 10.0)
+
+    @patch("check_stock.requests.get")
+    def test_fetch_rules_uses_default_long_term_config_when_missing(self, mock_get):
+        mock_get.return_value.json.return_value = {
+            "rules": [{"symbol": "voo", "x_days": 5, "y_percent": 3}],
+        }
+
+        rules = stock_job.fetch_rules("https://example.test/config")
+
+        self.assertEqual(rules, [stock_job.Rule("VOO", 5, 3.0)])
+        self.assertEqual(stock_job.LONG_TERM_LOOKBACK_DAYS, 60)
+        self.assertEqual(stock_job.LONG_TERM_DROP_PERCENT, 10.0)
 
     @patch("check_stock.requests.get")
     def test_fetch_rules_falls_back_when_api_returns_no_valid_rules(self, mock_get):
@@ -248,10 +274,11 @@ class DownloadClosePricesTests(unittest.TestCase):
 
         self.assertTrue(close_series.equals(expected_series))
         mock_ticker_cls.assert_called_once_with("VOO")
-        mock_ticker.history.assert_called_once_with(period="10d", interval="1d")
+        mock_ticker.history.assert_called_once_with(period="65d", interval="1d")
 
     @patch("check_stock.format_tw_close_series")
     @patch("check_stock.get_tw_close_prices")
+    @unittest.skip(".TW special download path is temporarily disabled in check_stock.download_close_prices")
     def test_download_close_prices_uses_shioaji_helpers_for_tw_symbols(
         self,
         mock_get_tw_close_prices,
@@ -276,19 +303,21 @@ class DownloadClosePricesTests(unittest.TestCase):
         self.assertTrue(close_series.equals(expected_series))
         mock_get_tw_close_prices.assert_called_once_with(
             "0050.TW",
-            10,
+            65,
         )
         mock_format_tw_close_series.assert_called_once_with(tw_df)
 
 
 class GetSessionHoursTests(unittest.TestCase):
     def test_tw_returns_correct_hours(self):
-        start, end = stock_job._get_session_hours("台股")
+        from check_stock_utils import get_session_hours
+        start, end = get_session_hours("台股")
         self.assertEqual(start, dt.time(8, 0))
         self.assertEqual(end, dt.time(15, 0))
 
     def test_us_returns_correct_hours(self):
-        start, end = stock_job._get_session_hours("美股")
+        from check_stock_utils import get_session_hours
+        start, end = get_session_hours("美股")
         self.assertEqual(start, dt.time(8, 0))
         self.assertEqual(end, dt.time(17, 0))
 
@@ -337,19 +366,45 @@ class CalculatePriceChangePctTests(unittest.TestCase):
 
 class ExceedsDropThresholdTests(unittest.TestCase):
     def test_exceeds_threshold(self):
-        self.assertTrue(stock_job._exceeds_drop_threshold(-6.0, 5.0))
+        from check_stock_utils import exceeds_drop_threshold
+        self.assertTrue(exceeds_drop_threshold(-6.0, 5.0))
 
     def test_not_exceeds_threshold(self):
-        self.assertFalse(stock_job._exceeds_drop_threshold(-4.0, 5.0))
+        from check_stock_utils import exceeds_drop_threshold
+        self.assertFalse(exceeds_drop_threshold(-4.0, 5.0))
 
     def test_positive_drop(self):
-        self.assertFalse(stock_job._exceeds_drop_threshold(6.0, 5.0))
+        from check_stock_utils import exceeds_drop_threshold
+        self.assertFalse(exceeds_drop_threshold(6.0, 5.0))
 
     def test_exact_threshold(self):
-        self.assertTrue(stock_job._exceeds_drop_threshold(-5.0, 5.0))
+        from check_stock_utils import exceeds_drop_threshold
+        self.assertTrue(exceeds_drop_threshold(-5.0, 5.0))
+
+
+class ExceedsLongTermDropThresholdTests(unittest.TestCase):
+    def test_exceeds_threshold(self):
+        from check_stock_utils import exceeds_long_term_drop_threshold
+        self.assertTrue(exceeds_long_term_drop_threshold(-10.0, 10.0))
+
+    def test_not_exceeds_threshold(self):
+        from check_stock_utils import exceeds_long_term_drop_threshold
+        self.assertFalse(exceeds_long_term_drop_threshold(-9.5, 10.0))
+
+    def test_positive_change(self):
+        from check_stock_utils import exceeds_long_term_drop_threshold
+        self.assertFalse(exceeds_long_term_drop_threshold(3.0, 10.0))
 
 
 class BuildStockBubbleTests(unittest.TestCase):
+
+    def setUp(self):
+        self.long_term_days_patcher = patch("check_stock.LONG_TERM_LOOKBACK_DAYS", 3)
+        self.long_term_percent_patcher = patch("check_stock.LONG_TERM_DROP_PERCENT", 10.0)
+        self.long_term_days_patcher.start()
+        self.long_term_percent_patcher.start()
+        self.addCleanup(self.long_term_days_patcher.stop)
+        self.addCleanup(self.long_term_percent_patcher.stop)
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.build_bubble", return_value={"type": "bubble", "market": "tw"})
@@ -418,13 +473,14 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertGreater(mock_build_bubble.call_args.args[4], 0)
 
 
-    def setUp(self):
+    def _set_common_us_context(self):
         self.rule = stock_job.Rule("VOO", 3, 5.0)
         self.now = pytz.timezone("America/New_York").localize(dt.datetime(2026, 3, 10, 10, 15))
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.is_market_open", return_value=False)
     def test_build_stock_bubble_returns_none_when_market_is_closed(self, mock_is_market_open):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
 
         bubble = stock_job.build_stock_bubble(self.rule)
@@ -442,6 +498,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_download_close_prices,
         mock_build_bubble,
     ):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
         mock_download_close_prices.return_value = make_close_series([100.0, 101.0, 101.0, 101.0], start="2026-03-07")
 
@@ -460,8 +517,9 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_is_market_open,
         mock_download_close_prices,
     ):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
-        mock_download_close_prices.return_value = make_close_series([100.0, 95.0, 94.0], start="2026-03-08")
+        mock_download_close_prices.return_value = make_close_series([100.0, 95.0], start="2026-03-09")
 
         bubble = stock_job.build_stock_bubble(self.rule)
 
@@ -477,6 +535,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_download_close_prices,
         mock_has_today_data,
     ):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
         mock_download_close_prices.return_value = make_close_series([100.0, 99.0, 98.0, 97.0], start="2026-03-07")
 
@@ -493,6 +552,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_download_close_prices,
         mock_build_bubble,
     ):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
         mock_download_close_prices.return_value = make_close_series([100.0, 99.0, 98.0, 97.0], start="2026-03-07")
 
@@ -511,6 +571,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_download_close_prices,
         mock_build_bubble,
     ):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
         mock_download_close_prices.return_value = make_close_series([100.0, 90.0, 88.0, 85.0], start="2026-03-07")
 
@@ -526,6 +587,15 @@ class BuildStockBubbleTests(unittest.TestCase):
             5.0,
             "03-08: 90.00\n03-09: 88.00\n03-10: 85.00",
             is_final_report=False,
+            short_lookback_days=3,
+            long_lookback_days=3,
+            short_lookback_change_pct=-5.555555555555555,
+            long_lookback_change_pct=-5.555555555555555,
+            short_lookback_date="2026-03-08",
+            long_lookback_date="2026-03-08",
+            close_short_lookback_ago=90.0,
+            close_long_lookback_ago=90.0,
+            long_term_drop_percent=10.0,
         )
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
@@ -538,6 +608,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_download_close_prices,
         mock_build_bubble,
     ):
+        self._set_common_us_context()
         FixedDateTime.frozen_now = self.now.replace(hour=16, minute=45)
         mock_download_close_prices.return_value = make_close_series([100.0, 102.0, 101.0, 103.0], start="2026-03-07")
 
@@ -560,23 +631,121 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertEqual(str(market_now.tzinfo), "Asia/Taipei")
         self.assertEqual(market_now.hour, 9)
 
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble", "long": True})
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=True)
+    def test_build_stock_bubble_builds_bubble_when_long_term_drop_hits_threshold(
+        self,
+        mock_is_market_open,
+        mock_download_close_prices,
+        mock_build_bubble,
+    ):
+        self._set_common_us_context()
+        FixedDateTime.frozen_now = self.now
+        close_series = make_close_series(
+            [
+                120.0,
+                119.0,
+                118.0,
+                117.0,
+                116.0,
+                115.0,
+                114.0,
+                113.0,
+                112.0,
+                111.0,
+                110.0,
+                109.0,
+                108.0,
+                107.0,
+                106.0,
+                105.0,
+                104.0,
+                103.0,
+                102.0,
+                101.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+            ],
+            start="2026-01-09",
+        )
+        mock_download_close_prices.return_value = close_series
+
+        with patch("check_stock.LONG_TERM_LOOKBACK_DAYS", 60), patch(
+            "check_stock.LONG_TERM_DROP_PERCENT",
+            10.0,
+        ):
+            bubble = stock_job.build_stock_bubble(self.rule)
+
+        self.assertEqual(bubble, {"type": "bubble", "long": True})
+        self.assertTrue(mock_build_bubble.called)
+        self.assertEqual(mock_build_bubble.call_args.kwargs["short_lookback_days"], 3)
+        self.assertEqual(mock_build_bubble.call_args.kwargs["long_lookback_days"], 60)
+        self.assertAlmostEqual(mock_build_bubble.call_args.kwargs["short_lookback_change_pct"], 0.0)
+        self.assertAlmostEqual(mock_build_bubble.call_args.kwargs["long_lookback_change_pct"], -15.966386554621849)
+        self.assertEqual(mock_build_bubble.call_args.kwargs["short_lookback_date"], "2026-03-08")
+        self.assertEqual(mock_build_bubble.call_args.kwargs["long_lookback_date"], "2026-01-10")
+        self.assertEqual(mock_build_bubble.call_args.kwargs["close_short_lookback_ago"], 100.0)
+        self.assertEqual(mock_build_bubble.call_args.kwargs["close_long_lookback_ago"], 119.0)
+        self.assertEqual(mock_build_bubble.call_args.kwargs["long_term_drop_percent"], 10.0)
+
 
 class FormatHistoryTests(unittest.TestCase):
     def test_format_history_returns_mm_dd_lines_for_us_market(self):
         close_series = make_close_series([100.0, 101.25], tz="Asia/Taipei")
 
-        history = stock_job.format_history(close_series, isTW=False)
+        history = stock_job.format_history_utils(close_series)
 
         self.assertEqual(history, "03-03: 100.00\n03-04: 101.25")
 
-    def test_format_history_returns_timestamp_lines_for_tw_market(self):
+    def test_format_history_returns_mm_dd_lines_for_tw_market(self):
         close_series = make_close_series([100.0, 101.25], tz="Asia/Taipei")
 
-        history = stock_job.format_history(close_series, isTW=True)
+        history = stock_job.format_history_utils(close_series)
 
         self.assertEqual(
             history,
-            "2026-03-03 00:00:00+08:00: 100.00\n2026-03-04 00:00:00+08:00: 101.25",
+            "03-03: 100.00\n03-04: 101.25",
         )
 
 
@@ -602,6 +771,25 @@ class MainTests(unittest.TestCase):
         mock_build_carousel.assert_called_once_with([{"type": "bubble", "hero": "one"}])
         mock_send_line.assert_called_once_with({"type": "carousel"})
         mock_logout_api.assert_called_once()
+
+    @patch("check_stock.logout_api")
+    @patch("check_stock.send_line")
+    @patch("check_stock.build_carousel")
+    @patch("check_stock.build_stock_bubble", return_value=None)
+    @patch("check_stock.fetch_rules", return_value=[stock_job.Rule("VOO", 5, 5.0)])
+    def test_main_skips_send_and_logout_when_no_bubbles(
+        self,
+        mock_fetch_rules,
+        mock_build_stock_bubble,
+        mock_build_carousel,
+        mock_send_line,
+        mock_logout_api,
+    ):
+        stock_job.main()
+
+        mock_build_carousel.assert_not_called()
+        mock_send_line.assert_not_called()
+        mock_logout_api.assert_not_called()
 
     @patch("check_stock.logout_api")
     @patch("check_stock.send_line", side_effect=RuntimeError("send_line failed"))
