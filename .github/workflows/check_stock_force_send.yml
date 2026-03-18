@@ -1,4 +1,4 @@
-name: stock checker
+name: stock checker force send
 
 on:
   workflow_dispatch:
