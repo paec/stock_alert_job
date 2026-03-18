@@ -274,7 +274,7 @@ class DownloadClosePricesTests(unittest.TestCase):
 
         self.assertTrue(close_series.equals(expected_series))
         mock_ticker_cls.assert_called_once_with("VOO")
-        mock_ticker.history.assert_called_once_with(period="65d", interval="1d")
+        mock_ticker.history.assert_called_once_with(period="65d", interval="1d", auto_adjust=False)
 
     @patch("check_stock.format_tw_close_series")
     @patch("check_stock.get_tw_close_prices")
