@@ -22,7 +22,7 @@ from check_stock_utils import (
 
 from flex_msg_tpl import build_bubble, build_carousel
 
-API_URL = os.getenv("CONFIG_API_URL", "https://your-pythonanywhere-domain/api/config")
+API_URL = os.getenv("CONFIG_API_URL", "http://127.0.0.1:5000/api/config")
 LINE_TOKEN = os.getenv("LINE_TOKEN", "")
 LINE_BROADCAST_URL = "https://api.line.me/v2/bot/message/broadcast"
 DEFAULT_LOOKBACK_PADDING_DAYS = 5
@@ -116,6 +116,7 @@ def fetch_rules(api_url: str = API_URL) -> list[Rule]:
 
     try:
         config = requests.get(api_url, timeout=20).json()
+        print(f"Fetched config: {json.dumps(config)}")
         _load_long_term_config(config)
         raw_rules = config.get("rules", [])
     except Exception as exc:
