@@ -11,8 +11,9 @@ pd.set_option('display.width', 0)          # 自動調整
 # 顯示每欄最大字元數
 pd.set_option('display.max_colwidth', None)
 
+symbol = "0050.TW" 
 
-ticker = yf.Ticker("VT")
+ticker = yf.Ticker(symbol)
 df = ticker.history(period=f"10d", interval="1d")
 print(f"\nhistory daily:\n {df}")
 
@@ -31,7 +32,7 @@ else:
     print("history 目前非開盤時間或抓不到分鐘資料")
 print("\n\n")
     
-symbol = "0050.TW" 
+
 # 1. 下載日 K 資料 (例如最近 5 天)
 df_daily = yf.download(symbol, period="5d", interval="1d")
 print(f"\ndaily download:\n {df_daily}")
