@@ -5,6 +5,7 @@
 | `CONFIG_API_URL`    | Config API 網址                           | (pythonanywhere 範例網址) |
 | `LINE_TOKEN`        | LINE Messaging API channel access token   | 空白                      |
 | `FORCE_SEND_REPORT` | 強制傳送報告（`true`/`1`/`yes`/`on`）     | `false`                   |
+| `ADD_MORE_API_URL`  | 「已加碼」按鈕使用的 GET API 網址          | `https://example.invalid/api/add-more` |
 | `SINOPAC_API_KEY`   | 永豐金 API Key                            | 空白                      |
 | `SINOPAC_SECRET_KEY`| 永豐金 API Secret                         | 空白                      |
 | `SINOPAC_CA_PATH`   | 永豐金憑證路徑                            | `Sinopac.pfx`             |
@@ -49,7 +50,6 @@ set CONFIG_API_URL=https://your-domain.pythonanywhere.com/api/config
 set LINE_TOKEN=your_line_token
 python script/check_stock.py
 ```
-
 
 ## 3. Run Test case
 
