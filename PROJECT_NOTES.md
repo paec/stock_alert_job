@@ -112,6 +112,9 @@ bubble 會同時呈現：
 - 短線區間：`short_lookback_days`、短線漲跌幅、短線 threshold 判斷
 - 長線區間：`long_lookback_days`、長線漲跌幅、長線 threshold 判斷
 - 各自獨立顏色規則，不互相覆蓋
+- 只有短線或長線 threshold 實際觸發 Alarm 時，才顯示「已加碼」按鈕
+- 按鈕使用 GET URI action，透過 `?symbol={symbol}` 傳入股票代號
+- final report 或只有 `FORCE_SEND_REPORT` 時不顯示按鈕
 
 顏色規則：
 - 上漲：綠色
@@ -128,6 +131,7 @@ bubble 會同時呈現：
 - `CONFIG_API_URL`
 - `LINE_TOKEN`
 - `FORCE_SEND_REPORT`
+- `ADD_MORE_API_URL`
 
 永豐相關（給 `shioaji_utils.py` 用）：
 - `SINOPAC_API_KEY`
@@ -156,6 +160,8 @@ Config API 建議欄位：
 - `check_stock.py` 主流程與關鍵分支：已相當完整。
 - `check_stock_utils.py` / `shioaji_utils.py`：已有明確單元測試。
 - 主要不足：`flex_msg_tpl.py` 幾乎未覆蓋（21%），目前多數訊息格式僅間接驗證。
+
+已補強「已加碼」按鈕的模板測試，包含按鈕顯示條件、GET URL 的 `symbol` query string、既有 query parameter 與特殊字元編碼。
 
 ---
 
