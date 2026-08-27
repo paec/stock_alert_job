@@ -2,6 +2,15 @@ name: stock checker force send
 
 on:
   workflow_dispatch:
+    inputs:
+      config_api_url:
+        description: "Config API 網址（Secret 優先）"
+        required: false
+        default: "http://127.0.0.1:5000/api/config"
+      add_more_api_url:
+        description: "已加碼 API 網址（Secret 優先）"
+        required: false
+        default: "https://example.invalid/api/add-more"
 
 jobs:
   run:
@@ -51,7 +60,8 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
         env:
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
-          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL }}
+          CONFIG_API_URL: ${{ secrets.CONFIG_API_URL || github.event.inputs.config_api_url }}
+          ADD_MORE_API_URL: ${{ secrets.ADD_MORE_API_URL || github.event.inputs.add_more_api_url }}
           SINOPAC_API_KEY: ${{ secrets.SINOPAC_API_KEY }}
           SINOPAC_SECRET_KEY: ${{ secrets.SINOPAC_SECRET_KEY }}
           SINOPAC_CA_PATH: ${{ secrets.SINOPAC_CA_PATH }}
