@@ -1,4 +1,4 @@
-﻿import datetime
+import datetime
 import json
 import os
 from dataclasses import dataclass
@@ -332,6 +332,9 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
         close_short_lookback_ago=close_short_lookback_ago,
         close_long_lookback_ago=close_long_lookback_ago,
         long_term_drop_percent=LONG_TERM_DROP_PERCENT,
+        show_add_more_button=(
+            trigger_ctx.primary_triggered or trigger_ctx.long_term_triggered
+        ),
     )
 
 
