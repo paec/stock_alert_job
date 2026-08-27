@@ -470,6 +470,7 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertEqual(bubble, {"type": "bubble", "market": "tw-final"})
         self.assertTrue(mock_build_bubble.call_args.kwargs["is_final_report"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["show_add_more_button"])
         self.assertGreater(mock_build_bubble.call_args.args[4], 0)
 
 
@@ -508,6 +509,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertEqual(bubble, {"type": "bubble", "forced": True})
         mock_is_market_open.assert_not_called()
         self.assertFalse(mock_build_bubble.call_args.kwargs["is_final_report"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["show_add_more_button"])
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.download_close_prices")
@@ -596,6 +598,7 @@ class BuildStockBubbleTests(unittest.TestCase):
             close_short_lookback_ago=90.0,
             close_long_lookback_ago=90.0,
             long_term_drop_percent=10.0,
+            show_add_more_button=True,
         )
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
@@ -728,6 +731,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertEqual(mock_build_bubble.call_args.kwargs["close_short_lookback_ago"], 100.0)
         self.assertEqual(mock_build_bubble.call_args.kwargs["close_long_lookback_ago"], 119.0)
         self.assertEqual(mock_build_bubble.call_args.kwargs["long_term_drop_percent"], 10.0)
+        self.assertTrue(mock_build_bubble.call_args.kwargs["show_add_more_button"])
 
 
 class FormatHistoryTests(unittest.TestCase):
