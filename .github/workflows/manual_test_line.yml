@@ -1,0 +1,68 @@
+name: manual LINE message test
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只產生訊息，不推送到 LINE"
+        required: true
+        default: false
+        type: boolean
+      symbol:
+        description: "測試股票代號"
+        required: true
+        default: "TEST"
+        type: string
+      short_drop_percent:
+        description: "短期模擬跌幅（百分比）"
+        required: true
+        default: "8"
+        type: string
+      short_threshold_percent:
+        description: "短期觸發門檻（百分比）"
+        required: true
+        default: "5"
+        type: string
+      long_drop_percent:
+        description: "長期模擬跌幅（百分比）"
+        required: true
+        default: "15"
+        type: string
+      long_threshold_percent:
+        description: "長期觸發門檻（百分比）"
+        required: true
+        default: "10"
+        type: string
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install requests
+
+      - name: Run manual LINE test
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+          LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          ADD_MORE_API_URL: ${{ secrets.ADD_MORE_API_URL || 'https://example.invalid/api/add-more' }}
+          MANUAL_TEST_SYMBOL: ${{ inputs.symbol }}
+          MANUAL_TEST_SHORT_DROP_PERCENT: ${{ inputs.short_drop_percent }}
+          MANUAL_TEST_SHORT_THRESHOLD_PERCENT: ${{ inputs.short_threshold_percent }}
+          MANUAL_TEST_LONG_DROP_PERCENT: ${{ inputs.long_drop_percent }}
+          MANUAL_TEST_LONG_THRESHOLD_PERCENT: ${{ inputs.long_threshold_percent }}
+        run: |
+          echo "### Manual LINE test (${{ github.run_id }})" >> "$GITHUB_STEP_SUMMARY"
+          echo '```text' >> "$GITHUB_STEP_SUMMARY"
+          python manual_test_line.py 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
