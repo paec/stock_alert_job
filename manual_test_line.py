@@ -1,6 +1,6 @@
-"""Send a fake threshold-alarm Flex message to one LINE user.
+"""Send a fake threshold-alarm Flex message to all LINE Official Account friends.
 
-Requires LINE_TOKEN and LINE_USER_ID; use DRY_RUN=true to print without sending.
+Use DRY_RUN=true to print the message without sending it.
 """
 
 import datetime as dt
@@ -13,7 +13,7 @@ import requests
 import flex_msg_tpl
 from flex_msg_tpl import build_bubble, build_carousel
 
-LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
+LINE_BROADCAST_URL = "https://api.line.me/v2/bot/message/broadcast"
 DEFAULT_SYMBOL = "TEST"
 DEFAULT_SHORT_DROP_PERCENT = 8.0
 DEFAULT_SHORT_THRESHOLD_PERCENT = 5.0
@@ -84,10 +84,10 @@ def build_manual_message(
     return build_carousel([bubble])
 
 
-def send_manual_message(message: dict[str, Any], token: str, user_id: str) -> None:
-    payload = build_push_payload(message, user_id)
+def send_manual_message(message: dict[str, Any], token: str) -> None:
+    payload = build_broadcast_payload(message)
     response = requests.post(
-        LINE_PUSH_URL,
+        LINE_BROADCAST_URL,
         headers={
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
@@ -101,9 +101,8 @@ def send_manual_message(message: dict[str, Any], token: str, user_id: str) -> No
     print(f"LINE push succeeded: {response.status_code}")
 
 
-def build_push_payload(message: dict[str, Any], user_id: str) -> dict[str, Any]:
+def build_broadcast_payload(message: dict[str, Any]) -> dict[str, Any]:
     return {
-        "to": user_id,
         "messages": [
             {
                 "type": "flex",
@@ -116,12 +115,7 @@ def build_push_payload(message: dict[str, Any], user_id: str) -> dict[str, Any]:
 
 def main() -> None:
     dry_run = os.getenv("DRY_RUN", "").strip().lower() in {"1", "true", "yes", "on"}
-    token = os.getenv("LINE_TOKEN", "").strip()  or 'xxx'
-    user_id = os.getenv("LINE_USER_ID", "").strip() or '0989216438'
-    if not dry_run and not token:
-        raise SystemExit("LINE_TOKEN is required")
-    if not dry_run and not user_id:
-        raise SystemExit("LINE_USER_ID is required")
+    token = os.getenv("LINE_TOKEN", "").strip()
 
     try:
         message = build_manual_message(
@@ -150,12 +144,16 @@ def main() -> None:
         print("Warning: ADD_MORE_API_URL is still using the placeholder URL.")
 
     if dry_run:
-        print(json.dumps(build_push_payload(message, user_id or "dry-run-user"), ensure_ascii=True, indent=2))
-        print("DRY_RUN=true: LINE push skipped")
+        print(json.dumps(build_broadcast_payload(message), ensure_ascii=True, indent=2))
+        print("DRY_RUN=true: LINE broadcast skipped")
         return
 
-    print("Sending a fake threshold-alarm Flex message...")
-    send_manual_message(message, token, user_id)
+    if not token:
+        print("LINE_TOKEN is not set. LINE broadcast skipped")
+        return
+
+    print("Broadcasting a fake threshold-alarm Flex message to all friends...")
+    send_manual_message(message, token)
 
 
 if __name__ == "__main__":
