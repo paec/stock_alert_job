@@ -401,10 +401,13 @@ class BuildStockBubbleTests(unittest.TestCase):
     def setUp(self):
         self.long_term_days_patcher = patch("check_stock.LONG_TERM_LOOKBACK_DAYS", 3)
         self.long_term_percent_patcher = patch("check_stock.LONG_TERM_DROP_PERCENT", 10.0)
+        self.status_patcher = patch("check_stock.check_add_more_status", return_value=False)
         self.long_term_days_patcher.start()
         self.long_term_percent_patcher.start()
+        self.mock_check_add_more_status = self.status_patcher.start()
         self.addCleanup(self.long_term_days_patcher.stop)
         self.addCleanup(self.long_term_percent_patcher.stop)
+        self.addCleanup(self.status_patcher.stop)
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.build_bubble", return_value={"type": "bubble", "market": "tw"})
@@ -436,6 +439,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         mock_is_market_open.assert_called_once_with("0050.TW", FixedDateTime.frozen_now)
         mock_download_close_prices.assert_called_once_with("0050.TW", 3)
         mock_has_today_data.assert_called_once_with(close_series, tz, "0050.TW")
+        self.mock_check_add_more_status.assert_called_once_with("0050.TW")
         # 應該有觸發 build_bubble，且 drop < 0 且 abs(drop) > y_percent
         args, kwargs = mock_build_bubble.call_args
         self.assertEqual(args[0], "0050.TW")
@@ -443,6 +447,7 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertLess(args[4], 0)
         self.assertGreaterEqual(abs(args[4]), 5.0)
+        self.assertFalse(kwargs["add_more_already_added"])
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.build_bubble", return_value={"type": "bubble", "market": "tw-final"})
@@ -470,6 +475,9 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertEqual(bubble, {"type": "bubble", "market": "tw-final"})
         self.assertTrue(mock_build_bubble.call_args.kwargs["is_final_report"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["show_add_more_button"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["add_more_already_added"])
+        self.mock_check_add_more_status.assert_not_called()
         self.assertGreater(mock_build_bubble.call_args.args[4], 0)
 
 
@@ -487,6 +495,7 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertIsNone(bubble)
         mock_is_market_open.assert_called_once()
+        self.mock_check_add_more_status.assert_not_called()
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.build_bubble", return_value={"type": "bubble", "forced": True})
@@ -508,6 +517,9 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertEqual(bubble, {"type": "bubble", "forced": True})
         mock_is_market_open.assert_not_called()
         self.assertFalse(mock_build_bubble.call_args.kwargs["is_final_report"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["show_add_more_button"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["add_more_already_added"])
+        self.mock_check_add_more_status.assert_not_called()
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.download_close_prices")
@@ -524,6 +536,7 @@ class BuildStockBubbleTests(unittest.TestCase):
         bubble = stock_job.build_stock_bubble(self.rule)
 
         self.assertIsNone(bubble)
+        self.mock_check_add_more_status.assert_not_called()
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.has_today_data", return_value=False)
@@ -543,6 +556,7 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertIsNone(bubble)
         mock_has_today_data.assert_called_once()
+        self.mock_check_add_more_status.assert_not_called()
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.build_bubble")
@@ -560,6 +574,7 @@ class BuildStockBubbleTests(unittest.TestCase):
 
         self.assertIsNone(bubble)
         mock_build_bubble.assert_not_called()
+        self.mock_check_add_more_status.assert_not_called()
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.build_bubble", return_value={"type": "bubble"})
@@ -574,10 +589,12 @@ class BuildStockBubbleTests(unittest.TestCase):
         self._set_common_us_context()
         FixedDateTime.frozen_now = self.now
         mock_download_close_prices.return_value = make_close_series([100.0, 90.0, 88.0, 85.0], start="2026-03-07")
+        self.mock_check_add_more_status.return_value = True
 
         bubble = stock_job.build_stock_bubble(self.rule)
 
         self.assertEqual(bubble, {"type": "bubble"})
+        self.mock_check_add_more_status.assert_called_once_with("VOO")
         mock_build_bubble.assert_called_once_with(
             "VOO",
             "03-08",
@@ -596,6 +613,8 @@ class BuildStockBubbleTests(unittest.TestCase):
             close_short_lookback_ago=90.0,
             close_long_lookback_ago=90.0,
             long_term_drop_percent=10.0,
+            show_add_more_button=True,
+            add_more_already_added=True,
         )
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
@@ -618,6 +637,8 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertEqual(mock_build_bubble.call_args.args[3], 3)
         self.assertGreater(mock_build_bubble.call_args.args[4], 0)
         self.assertTrue(mock_build_bubble.call_args.kwargs["is_final_report"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["add_more_already_added"])
+        self.mock_check_add_more_status.assert_not_called()
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.is_market_open", return_value=False)
@@ -728,6 +749,9 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertEqual(mock_build_bubble.call_args.kwargs["close_short_lookback_ago"], 100.0)
         self.assertEqual(mock_build_bubble.call_args.kwargs["close_long_lookback_ago"], 119.0)
         self.assertEqual(mock_build_bubble.call_args.kwargs["long_term_drop_percent"], 10.0)
+        self.assertTrue(mock_build_bubble.call_args.kwargs["show_add_more_button"])
+        self.assertFalse(mock_build_bubble.call_args.kwargs["add_more_already_added"])
+        self.mock_check_add_more_status.assert_called_once_with("VOO")
 
 
 class FormatHistoryTests(unittest.TestCase):

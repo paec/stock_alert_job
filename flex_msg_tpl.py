@@ -1,3 +1,10 @@
+from add_more_api import (
+  ADD_MORE_API_URL,
+  build_add_more_status_url,
+  build_add_more_url,
+)
+
+
 def _format_close_value(value):
   if value is None:
       return "N/A"
@@ -32,6 +39,18 @@ def _build_trigger_text(drop, threshold):
   return f"未觸發 (閾值 -{threshold}%)", "#AAAAAA"
 
 
+def _build_add_more_url(symbol, base_url=None):
+  if base_url is None:
+      base_url = ADD_MORE_API_URL
+  return build_add_more_url(symbol, base_url)
+
+
+def _build_add_more_status_url(symbol, base_url=None):
+  if base_url is None:
+      base_url = ADD_MORE_API_URL
+  return build_add_more_status_url(symbol, base_url)
+
+
 def build_bubble(
   symbol,
   start_date,
@@ -50,6 +69,8 @@ def build_bubble(
   close_short_lookback_ago=None,
   close_long_lookback_ago=None,
   long_term_drop_percent=None,
+  show_add_more_button: bool = False,
+  add_more_already_added: bool = False,
 ):
   short_drop_color = _resolve_drop_color(short_lookback_change_pct, y_percent)
   long_drop_color = _resolve_drop_color(long_lookback_change_pct, long_term_drop_percent)
@@ -60,7 +81,7 @@ def build_bubble(
   title_suffix = " (已關盤)" if is_final_report else ""
   title_text = f"📊 {symbol} 股票報表{title_suffix}"
 
-  return {
+  bubble = {
         "type": "bubble",
         "header": {
           "type": "box",
@@ -168,6 +189,23 @@ def build_bubble(
           ]
         }
   }
+  if show_add_more_button:
+      bubble["footer"] = {
+        "type": "box",
+        "layout": "vertical",
+        "contents": [
+          {
+            "type": "button",
+            "style": "secondary" if add_more_already_added else "primary",
+            "action": {
+              "type": "uri",
+              "label": "✅ 已加碼" if add_more_already_added else "已加碼",
+              "uri": _build_add_more_url(symbol),
+            },
+          }
+        ]
+      }
+  return bubble
 
 
 def build_carousel(bubbles):

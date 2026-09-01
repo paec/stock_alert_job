@@ -1,10 +1,11 @@
-﻿import datetime
+import datetime
 import json
 import os
 from dataclasses import dataclass
 from typing import Any
 import requests
 import yfinance as yf
+from add_more_api import check_add_more_status
 from shioaji_utils import get_tw_close_prices, format_tw_close_series, logout_api
 from check_stock_utils import (
     _env_to_bool,
@@ -20,7 +21,10 @@ from check_stock_utils import (
     print_close_series_with_index,
 )
 
-from flex_msg_tpl import build_bubble, build_carousel
+from flex_msg_tpl import (
+    build_bubble,
+    build_carousel,
+)
 
 API_URL = os.getenv("CONFIG_API_URL", "http://127.0.0.1:5000/api/config")
 LINE_TOKEN = os.getenv("LINE_TOKEN", "")
@@ -314,6 +318,13 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     long_lookback_days = LONG_TERM_LOOKBACK_DAYS
     short_lookback_date, close_short_lookback_ago = _get_close_point_days_ago(close_series, short_lookback_days)
     long_lookback_date, close_long_lookback_ago = _get_close_point_days_ago(close_series, long_lookback_days)
+    show_add_more_button = (
+        not trigger_ctx.is_final_report
+        and (trigger_ctx.primary_triggered or trigger_ctx.long_term_triggered)
+    )
+    add_more_already_added = (
+        check_add_more_status(rule.symbol) if show_add_more_button else False
+    )
     return build_bubble(
         rule.symbol,
         start_date,
@@ -332,6 +343,8 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
         close_short_lookback_ago=close_short_lookback_ago,
         close_long_lookback_ago=close_long_lookback_ago,
         long_term_drop_percent=LONG_TERM_DROP_PERCENT,
+        show_add_more_button=show_add_more_button,
+        add_more_already_added=add_more_already_added,
     )
 
 
