@@ -54,6 +54,7 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
           ADD_MORE_API_URL: ${{ secrets.ADD_MORE_API_URL || 'https://example.invalid/api/add-more' }}
           MANUAL_TEST_SYMBOL: ${{ inputs.symbol }}
           MANUAL_TEST_SHORT_DROP_PERCENT: ${{ inputs.short_drop_percent }}
