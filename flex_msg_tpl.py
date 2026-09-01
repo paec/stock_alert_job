@@ -199,7 +199,7 @@ def build_bubble(
             "style": "secondary" if add_more_already_added else "primary",
             "action": {
               "type": "uri",
-              "label": "已加碼",
+              "label": "✅ 已加碼",
               "uri": _build_add_more_url(symbol),
             },
           }

@@ -66,7 +66,7 @@ class BuildBubbleButtonTests(unittest.TestCase):
         self.assertEqual(button["type"], "button")
         self.assertEqual(button["style"], "primary")
         self.assertEqual(button["action"]["type"], "uri")
-        self.assertEqual(button["action"]["label"], "已加碼")
+        self.assertEqual(button["action"]["label"], "✅ 已加碼")
         self.assertEqual(
             button["action"]["uri"],
             "https://example.test/add-more?symbol=VOO",
@@ -81,7 +81,7 @@ class BuildBubbleButtonTests(unittest.TestCase):
 
         button = bubble["footer"]["contents"][0]
         self.assertEqual(button["style"], "secondary")
-        self.assertEqual(button["action"]["label"], "已加碼")
+        self.assertEqual(button["action"]["label"], "✅ 已加碼")
         self.assertEqual(
             button["action"]["uri"],
             "https://example.test/add-more?symbol=VOO",
