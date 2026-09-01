@@ -310,6 +310,24 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
         _log_non_triggered(rule, trigger_ctx)
         return None
 
+    has_alert_trigger = (
+        trigger_ctx.primary_triggered or trigger_ctx.long_term_triggered
+    )
+    add_more_already_added = False
+    if has_alert_trigger or trigger_ctx.is_final_report:
+        add_more_already_added = check_add_more_status(rule.symbol)
+
+    if (
+        has_alert_trigger
+        and add_more_already_added
+        and not trigger_ctx.is_final_report
+        and not FORCE_SEND_REPORT
+    ):
+        print(
+            f"{rule.symbol}: 已加碼且仍達下跌門檻，跳過 LINE ALARM，等待 FINAL_REPORT"
+        )
+        return None
+
     alert_status = _resolve_alert_status(trigger_ctx)
     _log_triggered(rule, trigger_ctx, alert_status)
 
@@ -319,11 +337,12 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     short_lookback_date, close_short_lookback_ago = _get_close_point_days_ago(close_series, short_lookback_days)
     long_lookback_date, close_long_lookback_ago = _get_close_point_days_ago(close_series, long_lookback_days)
     show_add_more_button = (
-        not trigger_ctx.is_final_report
-        and (trigger_ctx.primary_triggered or trigger_ctx.long_term_triggered)
-    )
-    add_more_already_added = (
-        check_add_more_status(rule.symbol) if show_add_more_button else False
+        (
+            not trigger_ctx.is_final_report
+            and has_alert_trigger
+            and not add_more_already_added
+        )
+        or (trigger_ctx.is_final_report and add_more_already_added)
     )
     return build_bubble(
         rule.symbol,

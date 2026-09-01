@@ -17,8 +17,7 @@
 
 1. `fetch_rules()`
 - 從 `CONFIG_API_URL` 取設定。
-- 載入規則清單 `rules`。
-- 同步載入長線設定 `long_term_drop.days`、`long_term_drop.drop_percent`。
+- 載入規則清單與長線設定（欄位格式見 `README`）。
 - 若 API 錯誤或規則無效：回退到預設規則。
 
 2. 逐檔規則執行 `build_stock_bubble(rule)`
@@ -48,6 +47,7 @@
 執行期可被 API 覆蓋：
 - `LONG_TERM_LOOKBACK_DAYS`（預設 60）
 - `LONG_TERM_DROP_PERCENT`（預設 10.0）
+- Config API 的長線欄位缺失或無效時，回退到上述預設值。
 
 規則預設值（當 API 失敗或 rules 無效）：
 - `0050.TW, 5 天, 5%`
@@ -112,12 +112,15 @@ bubble 會同時呈現：
 - 短線區間：`short_lookback_days`、短線漲跌幅、短線 threshold 判斷
 - 長線區間：`long_lookback_days`、長線漲跌幅、長線 threshold 判斷
 - 各自獨立顏色規則，不互相覆蓋
-- 只有短線或長線 threshold 實際觸發 Alarm 時，才建立「已加碼」按鈕
-- 建立按鈕前查詢 `ADD_MORE_API_URL` 的 `/status?symbol={symbol}` endpoint
-- status 回傳 `true` 時保留按鈕但使用 Flex `secondary` 灰色 disabled 偽裝樣式
-- status 回傳 `false` 或查詢失敗時使用原本的 primary 按鈕
-- 按鈕使用 GET URI action，透過 `?symbol={symbol}` 傳入股票代號
-- final report 或只有 `FORCE_SEND_REPORT` 時不顯示按鈕
+- 非最終報表且短線或長線 threshold 實際觸發 Alarm 時，才建立「已加碼」按鈕。
+- `build_bubble()` 以 `is_final_report` 控制標題後綴，並以
+  `show_add_more_button`、`add_more_already_added` 控制按鈕呈現。
+- 建立 Alarm 或最終報表前查詢已加碼狀態。
+- 非最終報表若 status 為 `true`，代表已加碼，跳過 LINE Alarm，等待最終報表。
+- 最終報表若 status 為 `true`，顯示 Flex `secondary` 灰色按鈕表示已加碼。
+- 非最終報表 status 為 `false` 或查詢失敗時，使用原本的 primary 按鈕。
+- 最終報表 status 為 `false` 或查詢失敗時，不顯示「已加碼」按鈕。
+- `FORCE_SEND_REPORT` 仍可強制送出報告，但不會因已加碼而顯示按鈕。
 
 顏色規則：
 - 上漲：綠色
@@ -126,37 +129,7 @@ bubble 會同時呈現：
 
 ---
 
-## 7) API 與環境變數
-
-來源：`README`
-
-主要變數：
-- `CONFIG_API_URL`
-- `LINE_TOKEN`
-- `FORCE_SEND_REPORT`
-- `ADD_MORE_API_URL`
-
-永豐相關（給 `shioaji_utils.py` 用）：
-- `SINOPAC_API_KEY`
-- `SINOPAC_SECRET_KEY`
-- `SINOPAC_CA_PATH`
-- `SINOPAC_CA_PW`
-- `SINOPAC_PERSON_ID`
-
-Config API 建議欄位：
-- `long_term_drop.days`
-- `long_term_drop.drop_percent`
-- `rules[]`（含 symbol / x_days / y_percent）
-
----
-
-## 8) 測試
-參照./test/
-
-
----
-
-## 9) 目前可補強的測試點（優先順序）
+## 7) 目前可補強的測試點（優先順序）
 
 P1（高）：
 - `flex_msg_tpl.py`
@@ -182,7 +155,7 @@ P4（低）：
 
 ---
 
-## 10) 維護時的快速檢查清單
+## 8) 維護時的快速檢查清單
 
 每次改動後建議確認：
 - 改動是否影響以下關鍵時點：台股 14:05、美股 16:45。
@@ -193,7 +166,7 @@ P4（低）：
 
 ---
 
-## 11) 一句話總結
+## 9) 一句話總結
 
 這個專案的關鍵在於：
 「以市場時區和固定報表時點為主軸，結合短線/長線兩套跌幅門檻，確保在資料可用且規則可回退的前提下，穩定地輸出 LINE 股票報表。」
