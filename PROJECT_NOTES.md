@@ -112,7 +112,10 @@ bubble 會同時呈現：
 - 短線區間：`short_lookback_days`、短線漲跌幅、短線 threshold 判斷
 - 長線區間：`long_lookback_days`、長線漲跌幅、長線 threshold 判斷
 - 各自獨立顏色規則，不互相覆蓋
-- 只有短線或長線 threshold 實際觸發 Alarm 時，才顯示「已加碼」按鈕
+- 只有短線或長線 threshold 實際觸發 Alarm 時，才建立「已加碼」按鈕
+- 建立按鈕前查詢 `ADD_MORE_API_URL` 的 `/status?symbol={symbol}` endpoint
+- status 回傳 `true` 時保留按鈕但使用 Flex `secondary` 灰色 disabled 偽裝樣式
+- status 回傳 `false` 或查詢失敗時使用原本的 primary 按鈕
 - 按鈕使用 GET URI action，透過 `?symbol={symbol}` 傳入股票代號
 - final report 或只有 `FORCE_SEND_REPORT` 時不顯示按鈕
 
@@ -147,21 +150,9 @@ Config API 建議欄位：
 
 ---
 
-## 8) 測試覆蓋現況（對照 TEST_CASES）
+## 8) 測試
+參照./test/
 
-目前整體覆蓋率（`coverage_summary.txt`）：
-- TOTAL: 94%
-- `check_stock.py`: 98%
-- `check_stock_utils.py`: 91%
-- `shioaji_utils.py`: 100%
-- `flex_msg_tpl.py`: 21%
-
-與 `test/TEST_CASES.md` 對照結論：
-- `check_stock.py` 主流程與關鍵分支：已相當完整。
-- `check_stock_utils.py` / `shioaji_utils.py`：已有明確單元測試。
-- 主要不足：`flex_msg_tpl.py` 幾乎未覆蓋（21%），目前多數訊息格式僅間接驗證。
-
-已補強「已加碼」按鈕的模板測試，包含按鈕顯示條件、GET URL 的 `symbol` query string、既有 query parameter 與特殊字元編碼。
 
 ---
 

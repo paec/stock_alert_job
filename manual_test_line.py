@@ -10,7 +10,7 @@ from typing import Any
 
 import requests
 
-import flex_msg_tpl
+from add_more_api import ADD_MORE_API_URL, check_add_more_status
 from flex_msg_tpl import build_bubble, build_carousel
 
 LINE_BROADCAST_URL = "https://api.line.me/v2/bot/message/broadcast"
@@ -60,6 +60,7 @@ def build_manual_message(
         f"{date_value.strftime('%m-%d')}: {price:.2f}"
         for date_value, price in zip(history_dates, history_prices)
     )
+    add_more_already_added = check_add_more_status(symbol)
 
     bubble = build_bubble(
         symbol=symbol,
@@ -80,6 +81,7 @@ def build_manual_message(
         close_long_lookback_ago=108.0,
         long_term_drop_percent=long_threshold_percent,
         show_add_more_button=True,
+        add_more_already_added=add_more_already_added,
     )
     return build_carousel([bubble])
 
@@ -140,7 +142,7 @@ def main() -> None:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    if flex_msg_tpl.ADD_MORE_API_URL.startswith("https://example.invalid/"):
+    if ADD_MORE_API_URL.startswith("https://example.invalid/"):
         print("Warning: ADD_MORE_API_URL is still using the placeholder URL.")
 
     if dry_run:

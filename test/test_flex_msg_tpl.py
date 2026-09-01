@@ -24,6 +24,20 @@ class BuildAddMoreUrlTests(unittest.TestCase):
             {"source": ["line"], "symbol": ["A B&TEST"]},
         )
 
+    def test_build_add_more_status_url_appends_status_and_preserves_url_parts(self):
+        url = flex_msg_tpl._build_add_more_status_url(
+            "A B&TEST",
+            "https://example.test/add-more/?source=line#section",
+        )
+
+        parsed_url = urlsplit(url)
+        self.assertEqual(parsed_url.path, "/add-more/status")
+        self.assertEqual(parsed_url.fragment, "section")
+        self.assertEqual(
+            parse_qs(parsed_url.query),
+            {"source": ["line"], "symbol": ["A B&TEST"]},
+        )
+
 
 class BuildBubbleButtonTests(unittest.TestCase):
     def _build_bubble(self, **kwargs):
@@ -50,7 +64,23 @@ class BuildBubbleButtonTests(unittest.TestCase):
         self.assertEqual(bubble["footer"]["type"], "box")
         button = bubble["footer"]["contents"][0]
         self.assertEqual(button["type"], "button")
+        self.assertEqual(button["style"], "primary")
         self.assertEqual(button["action"]["type"], "uri")
+        self.assertEqual(button["action"]["label"], "已加碼")
+        self.assertEqual(
+            button["action"]["uri"],
+            "https://example.test/add-more?symbol=VOO",
+        )
+
+    @patch("flex_msg_tpl.ADD_MORE_API_URL", "https://example.test/add-more")
+    def test_build_bubble_uses_secondary_style_when_already_added(self):
+        bubble = self._build_bubble(
+            show_add_more_button=True,
+            add_more_already_added=True,
+        )
+
+        button = bubble["footer"]["contents"][0]
+        self.assertEqual(button["style"], "secondary")
         self.assertEqual(button["action"]["label"], "已加碼")
         self.assertEqual(
             button["action"]["uri"],

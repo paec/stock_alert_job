@@ -1,8 +1,8 @@
-import os
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
-
-
-ADD_MORE_API_URL = os.getenv("ADD_MORE_API_URL") or "https://example.invalid/api/add-more"
+from add_more_api import (
+  ADD_MORE_API_URL,
+  build_add_more_status_url,
+  build_add_more_url,
+)
 
 
 def _format_close_value(value):
@@ -42,20 +42,13 @@ def _build_trigger_text(drop, threshold):
 def _build_add_more_url(symbol, base_url=None):
   if base_url is None:
       base_url = ADD_MORE_API_URL
+  return build_add_more_url(symbol, base_url)
 
-  parsed_url = urlsplit(base_url)
-  query_params = parse_qsl(parsed_url.query, keep_blank_values=True)
-  query_params.append(("symbol", symbol))
-  query = urlencode(query_params)
-  return urlunsplit(
-      (
-          parsed_url.scheme,
-          parsed_url.netloc,
-          parsed_url.path,
-          query,
-          parsed_url.fragment,
-      )
-  )
+
+def _build_add_more_status_url(symbol, base_url=None):
+  if base_url is None:
+      base_url = ADD_MORE_API_URL
+  return build_add_more_status_url(symbol, base_url)
 
 
 def build_bubble(
@@ -77,6 +70,7 @@ def build_bubble(
   close_long_lookback_ago=None,
   long_term_drop_percent=None,
   show_add_more_button: bool = False,
+  add_more_already_added: bool = False,
 ):
   short_drop_color = _resolve_drop_color(short_lookback_change_pct, y_percent)
   long_drop_color = _resolve_drop_color(long_lookback_change_pct, long_term_drop_percent)
@@ -202,7 +196,7 @@ def build_bubble(
         "contents": [
           {
             "type": "button",
-            "style": "primary",
+            "style": "secondary" if add_more_already_added else "primary",
             "action": {
               "type": "uri",
               "label": "已加碼",

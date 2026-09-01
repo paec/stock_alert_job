@@ -43,6 +43,14 @@ Example:
 
 If these fields are missing or invalid, code falls back to `60` and `10`.
 
+The add-more status API is derived from `ADD_MORE_API_URL` by appending
+`/status`. For example, when `ADD_MORE_API_URL` is
+`https://example.test/api/add-more`, the status request is sent to
+`https://example.test/api/add-more/status?symbol=VOO` and must return a JSON
+boolean. `true` renders the existing button in Flex `secondary` style as a
+visual disabled state; `false` keeps the primary button. Status request
+failures keep the primary button so the report can still be sent.
+
 ## 2. Test checker script locally
 
 ```bash
