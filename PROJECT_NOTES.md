@@ -5,8 +5,8 @@
 此專案會依規則檢查股票在「短線 / 長線」區間的漲跌幅，符合條件時組出 LINE Flex Message 並廣播。
 
 核心輸出：
-- 有觸發條件：送出 carousel（可含多檔 bubble）
-- 無觸發條件：不送訊息
+- 符合送出條件：送出 carousel（可含多檔 bubble）
+- 不符合送出條件：不送訊息
 
 主要入口：
 - `check_stock.py` 的 `main()`
@@ -26,9 +26,8 @@
 - 下載日線 close（目前統一用 yfinance 路徑）。
 - 非 `FORCE_SEND_REPORT` 時，確認最後一筆是否為當日資料。
 - 檢查資料量是否足夠（至少 `max(x_days, LONG_TERM_LOOKBACK_DAYS)` 筆）。
-- 計算短線 / 長線漲跌幅。
-- 判斷觸發條件（短線達門檻、長線達門檻、最終報表時間、或強制送出）。
-- 觸發才組 bubble，否則回傳 `None`。
+- 計算短線 / 長線漲跌幅，並依 `check_stock.py` 的決策流程判斷是否建立 bubble。
+- 不符合送出條件時回傳 `None`。
 
 3. 聚合 bubble
 - 至少一個 bubble 才 `build_carousel()` + `send_line()`。
@@ -81,26 +80,9 @@
 
 ---
 
-## 5) 觸發邏輯（何時送）
+## 5) 決策流程
 
-短線觸發：
-- `drop < 0` 且 `abs(drop) >= rule.y_percent`
-
-長線觸發：
-- `drop < 0` 且 `abs(drop) >= LONG_TERM_DROP_PERCENT`
-
-最終送出條件（四選一）：
-- `FORCE_SEND_REPORT`
-- 短線觸發
-- 長線觸發
-- 最終報表時間
-
-告警狀態字串（log 用）：
-- `FORCED_SEND`
-- `ALERT(short+long)`
-- `ALERT(short)`
-- `ALERT(long)`
-- `FINAL_REPORT`
+Alert、已加碼狀態與按鈕的完整決策流程，請見 [DECISION_FLOW.md](DECISION_FLOW.md)。
 
 ---
 
@@ -112,15 +94,6 @@ bubble 會同時呈現：
 - 短線區間：`short_lookback_days`、短線漲跌幅、短線 threshold 判斷
 - 長線區間：`long_lookback_days`、長線漲跌幅、長線 threshold 判斷
 - 各自獨立顏色規則，不互相覆蓋
-- 非最終報表且短線或長線 threshold 實際觸發 Alarm 時，才建立「已加碼」按鈕。
-- `build_bubble()` 以 `is_final_report` 控制標題後綴，並以
-  `show_add_more_button`、`add_more_already_added` 控制按鈕呈現。
-- 建立 Alarm 或最終報表前查詢已加碼狀態。
-- 非最終報表若 status 為 `true`，代表已加碼，跳過 LINE Alarm，等待最終報表。
-- 最終報表若 status 為 `true`，顯示 Flex `secondary` 灰色按鈕表示已加碼。
-- 非最終報表 status 為 `false` 或查詢失敗時，使用原本的 primary 按鈕。
-- 最終報表 status 為 `false` 或查詢失敗時，不顯示「已加碼」按鈕。
-- `FORCE_SEND_REPORT` 仍可強制送出報告，但不會因已加碼而顯示按鈕。
 
 顏色規則：
 - 上漲：綠色

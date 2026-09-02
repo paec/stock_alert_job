@@ -313,10 +313,11 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     has_alert_trigger = (
         trigger_ctx.primary_triggered or trigger_ctx.long_term_triggered
     )
-    add_more_already_added = False
-    if has_alert_trigger or trigger_ctx.is_final_report:
-        add_more_already_added = check_add_more_status(rule.symbol)
 
+    # 只要即將產生報表，就查詢今天是否曾經加碼；包含 threshold、final 和 force。
+    add_more_already_added = check_add_more_status(rule.symbol)
+
+    # 一般 threshold alarm 若已加碼，避免重複通知；final 和 force 仍要照常送出報表。
     if (
         has_alert_trigger
         and add_more_already_added
@@ -336,14 +337,9 @@ def build_stock_bubble(rule: Rule) -> dict[str, Any] | None:
     long_lookback_days = LONG_TERM_LOOKBACK_DAYS
     short_lookback_date, close_short_lookback_ago = _get_close_point_days_ago(close_series, short_lookback_days)
     long_lookback_date, close_long_lookback_ago = _get_close_point_days_ago(close_series, long_lookback_days)
-    show_add_more_button = (
-        (
-            not trigger_ctx.is_final_report
-            and has_alert_trigger
-            and not add_more_already_added
-        )
-        or (trigger_ctx.is_final_report and add_more_already_added)
-    )
+
+    # 有 threshold 觸發或曾經加碼，就顯示按鈕；按鈕樣式交由 build_bubble 依狀態決定。
+    show_add_more_button = has_alert_trigger or add_more_already_added
     return build_bubble(
         rule.symbol,
         start_date,

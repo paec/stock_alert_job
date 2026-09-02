@@ -519,7 +519,58 @@ class BuildStockBubbleTests(unittest.TestCase):
         self.assertFalse(mock_build_bubble.call_args.kwargs["is_final_report"])
         self.assertFalse(mock_build_bubble.call_args.kwargs["show_add_more_button"])
         self.assertFalse(mock_build_bubble.call_args.kwargs["add_more_already_added"])
-        self.mock_check_add_more_status.assert_not_called()
+        self.mock_check_add_more_status.assert_called_once_with("VOO")
+
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble", "forced": True})
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=False)
+    def test_build_stock_bubble_force_send_shows_button_when_already_added(
+        self,
+        mock_is_market_open,
+        mock_download_close_prices,
+        mock_build_bubble,
+    ):
+        self._set_common_us_context()
+        FixedDateTime.frozen_now = self.now
+        mock_download_close_prices.return_value = make_close_series([100.0, 101.0, 101.0, 101.0], start="2026-03-07")
+        self.mock_check_add_more_status.return_value = True
+
+        with patch("check_stock.FORCE_SEND_REPORT", True):
+            bubble = stock_job.build_stock_bubble(self.rule)
+
+        self.assertEqual(bubble, {"type": "bubble", "forced": True})
+        mock_is_market_open.assert_not_called()
+        self.assertFalse(mock_build_bubble.call_args.kwargs["is_final_report"])
+        self.assertTrue(mock_build_bubble.call_args.kwargs["show_add_more_button"])
+        self.assertTrue(mock_build_bubble.call_args.kwargs["add_more_already_added"])
+        self.mock_check_add_more_status.assert_called_once_with("VOO")
+
+    @patch("check_stock.datetime.datetime", FixedDateTime)
+    @patch("check_stock.build_bubble", return_value={"type": "bubble", "forced": True})
+    @patch("check_stock.download_close_prices")
+    @patch("check_stock.is_market_open", return_value=False)
+    def test_build_stock_bubble_force_send_keeps_alarm_when_already_added(
+        self,
+        mock_is_market_open,
+        mock_download_close_prices,
+        mock_build_bubble,
+    ):
+        self._set_common_us_context()
+        FixedDateTime.frozen_now = self.now
+        mock_download_close_prices.return_value = make_close_series(
+            [100.0, 90.0, 88.0, 85.0],
+            start="2026-03-07",
+        )
+        self.mock_check_add_more_status.return_value = True
+
+        with patch("check_stock.FORCE_SEND_REPORT", True):
+            bubble = stock_job.build_stock_bubble(self.rule)
+
+        self.assertEqual(bubble, {"type": "bubble", "forced": True})
+        self.assertTrue(mock_build_bubble.call_args.kwargs["show_add_more_button"])
+        self.assertTrue(mock_build_bubble.call_args.kwargs["add_more_already_added"])
+        self.mock_check_add_more_status.assert_called_once_with("VOO")
 
     @patch("check_stock.datetime.datetime", FixedDateTime)
     @patch("check_stock.download_close_prices")
